@@ -5,7 +5,7 @@ This script is licensed under the terms of the MIT license.
 Unless otherwise noted, code reproduced herein
 was written for this script.
 
-- Fco Jose Rodriguez Martos - frangal@gmail.com -
+- Fco Jose Rodriguez Martos - frangal_at_gmail.com -
 DISCLAIMER
 
 # Descomentar para activar debug
@@ -119,12 +119,10 @@ fi
 # Detectar arquitectura
 if [[ "${ARCHITECTURE}" == "arm64" ]]; then
         QEMUARCH=qemu-aarch64
-        KERNEL_IMAGE="linux-image-arm64"
         QEMUBIN="/usr/bin/qemu-aarch64-static"
         LIB_ARCH="aarch64-linux-gnu"
 elif [[ "${ARCHITECTURE}" == "armhf" ]]; then
         QEMUARCH=qemu-arm
-        KERNEL_IMAGE="linux-image-armmp"
         QEMUBIN="/usr/bin/qemu-arm-static"
         LIB_ARCH="arm-linux-gnu"
 fi
@@ -158,10 +156,14 @@ if [ ! -z "$ADDPKG" ]; then
 fi
 
 # Seleccionar Mirror de descarga
+DEB_MIRROR="http://deb.debian.org/debian"
+PI_MIRROR="http://raspbian.raspberrypi.org/raspbian/"
 if [[ "${OS}" == "debian" ]]; then
-        MIRROR="http://deb.debian.org/debian"
+    MIRROR=$DEB_MIRROR
+    BOOT="/boot/firmware"
 elif [[ "${OS}" == "raspbian" ]]; then
-        MIRROR="http://raspbian.raspberrypi.org/raspbian/"
+    MIRROR=$PI_MIRROR
+    BOOT="/boot"
 fi
 
 # Habilitar proxy http first stage
@@ -223,6 +225,20 @@ deb ${MIRROR} ${RELEASE}-updates ${COMPONENTS//,/ }
 #deb-src ${MIRROR} ${RELEASE}-updates ${COMPONENTS//,/ }
 EOM
 elif [[ "${OS}" == "raspbian" ]]; then
+systemd-nspawn_exec << _EOF
+wget http://raspbian.raspberrypi.org/raspbian.public.key -O - | sudo apt-key add -
+wget http://archive.raspbian.org/raspbian.public.key -O - | sudo apt-key add -
+_EOF
+if [[ "${ARCHITECTURE}" == "arm64" ]]; then
+cat <<EOM >$R/etc/apt/sources.list
+deb ${DEB_MIRROR} ${RELEASE} ${COMPONENTS//,/ }
+#deb-src ${DEB_MIRROR} ${RELEASE} ${COMPONENTS//,/ }
+EOM
+cat <<EOM >$R/etc/apt/sources.list.d/raspi.list
+deb ${MIRROR/${OS}/archive}|sed 's/$OS/debian/g' $RELEASE main
+#deb-src ${MIRROR/${OS}/archive}|sed 's/$OS/debian/g' $RELEASE main
+EOM
+elif [[ "${ARCHITECTURE}" == "armhf" ]]; then
 cat <<EOM >$R/etc/apt/sources.list
 deb ${MIRROR} ${RELEASE} ${COMPONENTS//,/ }
 #deb-src ${MIRROR} ${RELEASE} ${COMPONENTS//,/ }
@@ -231,6 +247,7 @@ cat <<EOM >$R/etc/apt/sources.list.d/raspi.list
 deb ${MIRROR/${OS}/archive}|sed 's/$OS/debian/g' $RELEASE main
 #deb-src ${MIRROR/${OS}/archive}|sed 's/$OS/debian/g' $RELEASE main
 EOM
+fi
 fi
 
 # Script para generar las key de OpenSSH server
@@ -314,14 +331,22 @@ ln -nfs /usr/share/zoneinfo/$TIMEZONE /etc/localtime
 dpkg-reconfigure -fnoninteractive tzdata
 EOF
 
+# Seleccionar kernel y bootloader
+case ${OS}+${ARCHITECTURE} in
+  debian+*|*+arm64) KERNEL_IMAGE="linux-image-arm64 raspi3-firmware";;
+  debian+*|*+armhf) KERNEL_IMAGE="linux-image-armmp raspi3-firmware";;
+  raspbian+*|*+arm64) KERNEL_IMAGE="raspberrypi-kernel raspberrypi-bootloader";;
+  raspbian+*|*+armhf) KERNEL_IMAGE="raspberrypi-kernel raspberrypi-bootloader";;
+esac
+
 # Instalando kernel
 systemd-nspawn_exec eatmydata apt-get update
-systemd-nspawn_exec eatmydata apt-get $APTOPTS ${KERNEL_IMAGE} raspi3-firmware
+systemd-nspawn_exec eatmydata apt-get $APTOPTS ${KERNEL_IMAGE}
 
 # Configuración SWAP
-echo 'vm.swappiness = 60' >> $R/etc/sysctl.conf
+echo 'vm.swappiness = 50' >> $R/etc/sysctl.conf
 systemd-nspawn_exec apt-get install -y dphys-swapfile
-sed -i 's/#CONF_SWAPSIZE=/CONF_SWAPSIZE=100/g' $R/etc/dphys-swapfile
+sed -i 's/#CONF_SWAPSIZE=/CONF_SWAPSIZE=128/g' $R/etc/dphys-swapfile
 
 # Instalar f2fs-tools y modificar cmdline.txt
 if [ $FSTYPE = f2fs ]; then
@@ -337,7 +362,7 @@ fi
 cat <<EOM >$R/etc/fstab
 proc            /proc           proc    defaults          0       0
 /dev/mmcblk0p2  /               $FSTYPE    defaults,noatime  0       1
-/dev/mmcblk0p1  /boot/firmware  vfat    defaults          0       2
+/dev/mmcblk0p1  $BOOT  vfat    defaults          0       2
 EOM
 
 # Preparar hostname y hosts
@@ -394,7 +419,7 @@ EOM
 fi
 
 # Configuración extra firmware
-cat <<EOF >>$R/boot/firmware/config.txt
+cat <<EOF >>$R/${BOOT}/config.txt
 hdmi_force_hotplug=1
 disable_splash=1
 EOF
@@ -480,14 +505,14 @@ fi
 MOUNTDIR="$BUILDDIR/mount"
 mkdir -p "$MOUNTDIR"
 mount "$ROOT_LOOP" "$MOUNTDIR"
-mkdir -p "$MOUNTDIR/boot/firmware"
-mount "$BOOT_LOOP" "$MOUNTDIR/boot/firmware"
+mkdir -p "$MOUNTDIR/$BOOT"
+mount "$BOOT_LOOP" "$MOUNTDIR/$BOOT"
 
 # Rsyncing rootfs en archivo de imagen
 rsync -aHAXx --exclude boot "${R}/" "${MOUNTDIR}/"
 rsync -rtx "${R}/boot" "${MOUNTDIR}/"
 
-umount "$MOUNTDIR/boot/firmware"
+umount "$MOUNTDIR/$BOOT"
 umount "$MOUNTDIR"
 rm -rf $BASEDIR
 
