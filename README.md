@@ -1,6 +1,6 @@
 # Raspberry Pi Image Builder
 
-_Herramienta para crear imágenes Debian arm64/armhf para Raspberry Pi 3B/3B+/4B_
+_Herramienta para crear imágenes Debian/Raspbian arm64/armhf para Raspberry Pi 3B/3B+/4B_
 
 ## Dependencias
 
@@ -18,8 +18,17 @@ qemu-user-static debian-archive-keyring debootstrap binfmt-support dosfstools
 Podemos establecer las variables del entorno por defecto sin modificar el script
 y adaptarlo a nuestras necesidades.
 
-Las variables por defecto son:
+Las variables configurables son:
 
+---
+* `OS` (Default: "debian")
+
+Podemos seleccionar diferentes sistemas operativos ( Debian / Raspbian).
+
+```shell
+  sudo OS="raspbian" ./rpi-img-builder.sh
+```
+---
 * `ARCHITECTURE` (Default: "arm64")
 
 Seleccionar arquitectura de la compilación entre arm64 y armhf.
@@ -27,7 +36,7 @@ Seleccionar arquitectura de la compilación entre arm64 y armhf.
 ```shell
   sudo ARCHITECTURE="armhf" ./rpi-img-builder.sh
 ```
-
+---
 * `FSTYPE` (Default: "ext4")
 
 Seleccionar el sistema de archivos de la partición /root entre ext4 y f2fs.
@@ -35,7 +44,7 @@ Seleccionar el sistema de archivos de la partición /root entre ext4 y f2fs.
 ```shell
   sudo FSTYPE="f2fs" ./rpi-img-builder.sh
 ```
-
+---
 * `NETWORK` (Default: "dhcp")
 
 Podemos definir una configuración de red estática con NETWORK=static
@@ -51,7 +60,7 @@ NETMASK=255.255.255.0
 ROUTER=192.168.10.1
 DNS=8.8.8.8.8
 ```
-
+---
 * `WIRELESS`
 
 Configuración de nuestra red wifi.
@@ -61,7 +70,7 @@ WPA_ESSID="tu red wifi"
 WPA_PASSWORD="contraseña wifi"
 WPA_COUNTRY="es" # Región para España
 ```
-
+---
 * `COMPRESS` (Default: "none" )
 
 Podremos generar una imagen comprimidas en formato gz o xz.
@@ -71,7 +80,7 @@ Podremos generar una imagen comprimidas en formato gz o xz.
 
   sudo COMPRESS="xz" ./rpi-img-builder.sh
 ```  
-
+---
 * `TIMEZONE` (Default: "Europe/Madrid" )
 
 Establecera la zona horaria.
@@ -79,7 +88,7 @@ Establecera la zona horaria.
 ```shell
   sudo TIMEZONE="Europe/London" ./rpi-img-builder.sh
 ```
-
+---
 * `LOCALES` (Default: "es_ES.UTF-8" )
 
 Establecera locale del sistema.
@@ -87,7 +96,7 @@ Establecera locale del sistema.
 ```shell
   sudo LOCALES="en_GB.UTF-8" ./rpi-img-builder.sh
 ```
-
+---
 * `ROOT_PASSWORD` (Default: "raspberry" )
 
 Establecer la contraseña a los usuarios root y pi.
@@ -95,7 +104,7 @@ Establecer la contraseña a los usuarios root y pi.
 ```shell
   sudo ROOT_PASSWORD="tupassword" ./rpi-img-builder.sh
 ```
-
+---
 * `HOST_NAME` (Default: "rpi" )
 
 Definir el nombre del host manualmente.
@@ -103,7 +112,7 @@ Definir el nombre del host manualmente.
 ```shell
   sudo HOST_NAME="rpi4b" ./rpi-img-builder.sh
 ```
-
+---
 * `ADDPKG` (Default: "none" )
 
 Añadir paquetes a la compilación de la imagen.
@@ -111,7 +120,7 @@ Añadir paquetes a la compilación de la imagen.
 ```shell
     sudo ADDPKG="nano,htop" ./rpi-img-builder.sh
 ```
-
+---
 * `BOOT_MB` (Default: "136" )
 
 Cambiar el tamaño de la partición BOOT.
@@ -119,7 +128,7 @@ Cambiar el tamaño de la partición BOOT.
 ```shell
     sudo BOOT_MB="150" ./rpi-img-builder.sh
 ```
-
+---
 * `PROXY_URL` (Default: "empty" )
 
 Habilitar el uso de http proxy.
