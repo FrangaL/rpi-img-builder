@@ -30,6 +30,9 @@ FSTYPE=${FSTYPE:-"ext4"}
 BOOT_MB="${BOOT_MB:-"136"}"
 FREE_SPACE="${FREE_SPACE:-"180"}"
 
+# Mirror de descarga
+DEB_MIRROR="http://deb.debian.org/debian"
+PI_MIRROR="http://raspbian.raspberrypi.org/raspbian/"
 # Github url
 REPOGIT="https://github.com/FrangaL"
 
@@ -58,6 +61,7 @@ fi
 # Cargar configuración de la compilacióm
 if [ -f ./config.txt ]; then
     source ./config.txt
+    IMGNAME=${OS}-${RELEASE}-${ARCHITECTURE}
 fi
 
 # Función de configuración de red
@@ -144,7 +148,7 @@ systemd-nspawn_exec(){
 # Base debootstrap
 COMPONENTS="main,contrib,non-free"
 MINPKGS="ifupdown,openresolv,net-tools,locales,init,dbus,rsyslog,cron,sudo"
-EXTRAPKGS="openssh-server,dialog,parted,dhcpcd5,eatmydata"
+EXTRAPKGS="openssh-server,dialog,parted,dhcpcd5,eatmydata,gnupg,gnupg2,wget"
 FIRMWARES="firmware-brcm80211,firmware-misc-nonfree,firmware-atheros,firmware-realtek"
 WIRELESSPKGS="wireless-tools,wpasupplicant,crda,wireless-tools,rfkill"
 BLUETOOTH="bluetooth,bluez,bluez-tools"
@@ -155,15 +159,32 @@ if [ ! -z "$ADDPKG" ]; then
   INCLUDEPKGS=${MINPKGS},${EXTRAPKGS},${FIRMWARES},${WIRELESSPKGS},${BLUETOOTH},${ADDPKG}
 fi
 
-# Seleccionar Mirror de descarga
-DEB_MIRROR="http://deb.debian.org/debian"
-PI_MIRROR="http://raspbian.raspberrypi.org/raspbian/"
 if [[ "${OS}" == "debian" ]]; then
     MIRROR=$DEB_MIRROR
+    BOOTSTRAP_URL=$MIRROR
+    KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
     BOOT="/boot/firmware"
+    # Seleccionar kernel y bootloader
+    case ${OS}+${ARCHITECTURE} in
+      debian+*|*+arm64) KERNEL_IMAGE="linux-image-arm64 raspi3-firmware";;
+      debian+*|*+armhf) KERNEL_IMAGE="linux-image-armmp raspi3-firmware";;
+    esac
 elif [[ "${OS}" == "raspbian" ]]; then
     MIRROR=$PI_MIRROR
     BOOT="/boot"
+    KERNEL_IMAGE="raspberrypi-kernel raspberrypi-bootloader"
+    case ${OS}+${ARCHITECTURE} in
+      raspbian+*|*+arm64)
+      KERNEL_PI=kernel8.img
+      MIRROR_PIOS=$(echo ${MIRROR/${OS}/archive}|sed 's/raspbian/debian/g')
+      KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
+      KEYRING_PKG=$MIRROR_PIOS/pool/main/r/raspberrypi-archive-keyring/raspberrypi-archive-keyring_2016.10.31_all.deb
+      BOOTSTRAP_URL=$DEB_MIRROR;;
+      raspbian+*|*+armhf)
+      KERNEL_PI=kernel7l.img
+      KEYRING=/usr/share/keyrings/raspberrypi-archive-keyring.gpg
+      BOOTSTRAP_URL=$(echo ${MIRROR/${OS}/archive}|sed 's/raspbian/debian/g');;
+    esac
 fi
 
 # Habilitar proxy http first stage
@@ -179,7 +200,7 @@ fi
 
 # First stage
 eatmydata debootstrap --foreign --arch=${ARCHITECTURE} --components=${COMPONENTS} \
---variant - --include=${INCLUDEPKGS} $RELEASE $R $MIRROR
+--keyring=$KEYRING --variant - --include=${INCLUDEPKGS} $RELEASE $R $BOOTSTRAP_URL
 
 # Habilitar proxy http second stage
 if [ -n "$PROXY_URL" ]; then
@@ -225,18 +246,19 @@ deb ${MIRROR} ${RELEASE}-updates ${COMPONENTS//,/ }
 #deb-src ${MIRROR} ${RELEASE}-updates ${COMPONENTS//,/ }
 EOM
 elif [[ "${OS}" == "raspbian" ]]; then
-systemd-nspawn_exec << _EOF
-wget http://raspbian.raspberrypi.org/raspbian.public.key -O - | sudo apt-key add -
-wget http://archive.raspbian.org/raspbian.public.key -O - | sudo apt-key add -
-_EOF
 if [[ "${ARCHITECTURE}" == "arm64" ]]; then
+systemd-nspawn_exec << _EOF
+wget $KEYRING_PKG -O /root/raspberrypi-archive-keyring.deb
+dpkg -i /root/raspberrypi-archive-keyring.deb
+rm -rf /root/raspberrypi-archive-keyring.deb
+_EOF
 cat <<EOM >$R/etc/apt/sources.list
 deb ${DEB_MIRROR} ${RELEASE} ${COMPONENTS//,/ }
 #deb-src ${DEB_MIRROR} ${RELEASE} ${COMPONENTS//,/ }
 EOM
 cat <<EOM >$R/etc/apt/sources.list.d/raspi.list
-deb ${MIRROR/${OS}/archive}|sed 's/$OS/debian/g' $RELEASE main
-#deb-src ${MIRROR/${OS}/archive}|sed 's/$OS/debian/g' $RELEASE main
+deb $MIRROR_PIOS $RELEASE main
+#deb-src $MIRROR_PIOS $RELEASE main
 EOM
 elif [[ "${ARCHITECTURE}" == "armhf" ]]; then
 cat <<EOM >$R/etc/apt/sources.list
@@ -244,8 +266,8 @@ deb ${MIRROR} ${RELEASE} ${COMPONENTS//,/ }
 #deb-src ${MIRROR} ${RELEASE} ${COMPONENTS//,/ }
 EOM
 cat <<EOM >$R/etc/apt/sources.list.d/raspi.list
-deb ${MIRROR/${OS}/archive}|sed 's/$OS/debian/g' $RELEASE main
-#deb-src ${MIRROR/${OS}/archive}|sed 's/$OS/debian/g' $RELEASE main
+deb $MIRROR_PIOS $RELEASE main
+#deb-src $MIRROR_PIOS $RELEASE main
 EOM
 fi
 fi
@@ -331,31 +353,36 @@ ln -nfs /usr/share/zoneinfo/$TIMEZONE /etc/localtime
 dpkg-reconfigure -fnoninteractive tzdata
 EOF
 
-# Seleccionar kernel y bootloader
-case ${OS}+${ARCHITECTURE} in
-  debian+*|*+arm64) KERNEL_IMAGE="linux-image-arm64 raspi3-firmware";;
-  debian+*|*+armhf) KERNEL_IMAGE="linux-image-armmp raspi3-firmware";;
-  raspbian+*|*+arm64) KERNEL_IMAGE="raspberrypi-kernel raspberrypi-bootloader";;
-  raspbian+*|*+armhf) KERNEL_IMAGE="raspberrypi-kernel raspberrypi-bootloader";;
-esac
-
 # Instalando kernel
 systemd-nspawn_exec eatmydata apt-get update
 systemd-nspawn_exec eatmydata apt-get $APTOPTS ${KERNEL_IMAGE}
+
+cat <<EOM >${R}${BOOT}/cmdline.txt
+net.ifnames=0 dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootfstype=$FSTYPE rootwait
+EOM
 
 # Configuración SWAP
 echo 'vm.swappiness = 50' >> $R/etc/sysctl.conf
 systemd-nspawn_exec apt-get install -y dphys-swapfile
 sed -i 's/#CONF_SWAPSIZE=/CONF_SWAPSIZE=128/g' $R/etc/dphys-swapfile
 
+# Configuración firmware
+if [ $OS = raspbian ]; then
+cat <<EOF >>$R/${BOOT}/config.txt
+[pi2]
+kernel=$KERNEL_PI
+[pi3]
+kernel=$KERNEL_PI
+[pi4]
+kernel=$KERNEL_PI
+[all]
+disable_splash=1
+EOF
+fi
+
 # Instalar f2fs-tools y modificar cmdline.txt
 if [ $FSTYPE = f2fs ]; then
   systemd-nspawn_exec apt-get install -y f2fs-tools
-  if [ $OS = debian ]; then
-    sed -i 's/ext4/f2fs/g' $R/boot/firmware/cmdline.txt
-  elif [ $OS = raspbian ]; then
-    sed -i 's/ext4/f2fs/g' $R/boot/cmdline.txt
-  fi
 fi
 
 # Definiendo puntos de montaje
@@ -417,12 +444,6 @@ network={
 }
 EOM
 fi
-
-# Configuración extra firmware
-cat <<EOF >>$R/${BOOT}/config.txt
-hdmi_force_hotplug=1
-disable_splash=1
-EOF
 
 # Raspberry PI userland tools
 if [[ "${OS}" == "debian" ]]; then
