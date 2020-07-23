@@ -357,21 +357,20 @@ ln -nfs /usr/share/zoneinfo/$TIMEZONE /etc/localtime
 dpkg-reconfigure -fnoninteractive tzdata
 EOF
 
-# Instalando kernel
-systemd-nspawn_exec eatmydata apt-get update
-systemd-nspawn_exec eatmydata apt-get $APTOPTS ${KERNEL_IMAGE}
-
-cat <<EOM >${R}${BOOT}/cmdline.txt
-net.ifnames=0 dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootfstype=$FSTYPE rootwait
-EOM
-
 # Configuración SWAP
 echo 'vm.swappiness = 50' >> $R/etc/sysctl.conf
 systemd-nspawn_exec apt-get install -y dphys-swapfile
 sed -i 's/#CONF_SWAPSIZE=/CONF_SWAPSIZE=128/g' $R/etc/dphys-swapfile
 
+# Instalando kernel
+systemd-nspawn_exec eatmydata apt-get update
+systemd-nspawn_exec eatmydata apt-get $APTOPTS ${KERNEL_IMAGE}
+
 # Configuración firmware
 if [ $OS = raspbian ]; then
+cat <<EOM >${R}${BOOT}/cmdline.txt
+net.ifnames=0 dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootfstype=$FSTYPE rootwait
+EOM
 cat <<EOF >>$R/${BOOT}/config.txt
 [pi2]
 kernel=$KERNEL_PI
