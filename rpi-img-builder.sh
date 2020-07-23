@@ -104,8 +104,8 @@ done
 }
 
 # Instalar dependencias necesarias
-DEPS="debian-archive-keyring binfmt-support dosfstools qemu-user-static subversion rsync \
-systemd-container wget debootstrap parted lsof f2fs-tools"
+DEPS="binfmt-support dosfstools qemu-user-static subversion rsync wget lsof \
+systemd-container debootstrap parted eatmydata"
 installdeps
 
 # Checkear versión mínima debootstrap
@@ -156,10 +156,18 @@ if [ ! -z "$ADDPKG" ]; then
 fi
 
 if [[ "${OS}" == "debian" ]]; then
+    BOOT="/boot/firmware"
     MIRROR=$DEB_MIRROR
     BOOTSTRAP_URL=$MIRROR
     KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
-    BOOT="/boot/firmware"
+    KEYRING_FILE=debian-archive-keyring_2019.1_all.deb
+    KEYRING_PKG=${DEB_MIRROR}/pool/main/d/debian-archive-keyring/${KEYRING_FILE}
+    if [ ! -f ${KEYRING} ]; then
+      TMP_KEY="$(mktemp -d)"
+      wget $KEYRING_PKG -O ${TMP_KEY}/raspberrypi-archive-keyring.deb
+      dpkg -i ${TMP_KEY}/${KEYRING_FILE}
+      rm -rf ${TMP_KEY}
+    fi
     # Seleccionar kernel y bootloader
     case ${OS}+${ARCHITECTURE} in
       debian+*|*+arm64) KERNEL_IMAGE="linux-image-arm64 raspi3-firmware";;
@@ -204,9 +212,9 @@ if [ -n "$PROXY_URL" ]; then
 fi
 
 for archive in $R/var/cache/apt/archives/*eatmydata*.deb; do
-  dpkg-deb --fsys-tarfile "$archive" >$R/a
-  tar -xkf $R/a -C $R
-  rm -f $R/a
+  dpkg-deb --fsys-tarfile "$archive" >$R/eatmydata
+  tar -xkf $R/eatmydata -C $R
+  rm -f $R/eatmydata
 done
 
 systemd-nspawn_exec dpkg-divert --divert /usr/bin/dpkg-eatmydata --rename --add /usr/bin/dpkg
@@ -378,6 +386,7 @@ fi
 
 # Instalar f2fs-tools y modificar cmdline.txt
 if [ $FSTYPE = f2fs ]; then
+  DEPS="f2fs-tools" installdeps
   systemd-nspawn_exec apt-get install -y f2fs-tools
   sed -i 's/resize2fs/resize.f2fs/g' $R/usr/sbin/rpi-resizerootfs
   FSOPTS="rw,acl,active_logs=6,background_gc=on,user_xattr"
