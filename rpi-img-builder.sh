@@ -108,16 +108,12 @@ DEPS="debian-archive-keyring binfmt-support dosfstools qemu-user-static subversi
 systemd-container wget debootstrap parted lsof f2fs-tools"
 installdeps
 
-# Funcion de cambio de Nº version a Nº integro
-versionToInt(){ local IFS=.;parts=($1);let val=1000000*parts[0]+1000*parts[1]+parts[2];echo $val;}
-
 # Checkear versión mínima debootstrap
-DEBOOTSTRAP_VER=$(versionToInt $(debootstrap --version |  grep -o '[0-9.]\+' | head -1))
-DEBOOTSTRAP_MIN=$(versionToInt 1.0.105)
-
-if [ ${DEBOOTSTRAP_VER} \< ${DEBOOTSTRAP_MIN} ]; then
-	echo "Actualmente su versión de debootstrap no soporta el script"
-	echo "Actualice debootstrap ${REPOGIT}/debootstrap"
+DEBOOTSTRAP_VER=$(debootstrap --version |  grep -o '[0-9.]\+' | head -1)
+if dpkg --compare-versions "$DEBOOTSTRAP_VER" lt "1.0.105"; then
+    echo "Actualmente su versión de debootstrap no soporta el script" >&2
+    echo "Actualice debootstrap ${REPOGIT}/debootstrap" >&2
+    exit 1
 fi
 
 # Detectar arquitectura
@@ -383,12 +379,16 @@ fi
 # Instalar f2fs-tools y modificar cmdline.txt
 if [ $FSTYPE = f2fs ]; then
   systemd-nspawn_exec apt-get install -y f2fs-tools
+  sed -i 's/resize2fs/resize.f2fs/g' $R/usr/sbin/rpi-resizerootfs
+  FSOPTS="rw,acl,active_logs=6,background_gc=on,user_xattr"
+elif [ $FSTYPE = ext4 ]; then
+  FSOPTS="defaults,noatime"
 fi
 
 # Definiendo puntos de montaje
 cat <<EOM >$R/etc/fstab
 proc            /proc           proc    defaults          0       0
-/dev/mmcblk0p2  /               $FSTYPE    defaults,noatime  0       1
+/dev/mmcblk0p2  /               $FSTYPE    $FSOPTS  0       1
 /dev/mmcblk0p1  $BOOT  vfat    defaults          0       2
 EOM
 
@@ -482,6 +482,8 @@ rm -rf $R/run/* $R/etc/*- $R/tmp/*
 rm -rf $R/var/lib/apt/lists/*
 rm -rf $R/var/cache/apt/archives/*
 rm -rf $R/var/cache/apt/*.bin
+rm -rf $R/var/cache/debconf/*-old
+rm -rf $R/var/lib/dpkg/*-old
 rm -rf $R/usr/share/man/* $R/usr/share/info/*
 rm -rf $R/usr/share/lintian/*
 rm -rf /etc/ssh/ssh_host_*
@@ -498,7 +500,7 @@ rm -f $R/root/.bash_history
 
 # Calcule el espacio para crear la imagen.
 ROOTSIZE=$(du -s -B1 ${R} --exclude=${R}/boot | cut -f1)
-ROOTSIZE=$((+${ROOTSIZE}/1024+131072))
+ROOTSIZE=$((+${ROOTSIZE}/1024+131072/1000*5*1024/5))
 RAW_SIZE=$(($((${FREE_SPACE}*1024))+${ROOTSIZE}+$((${BOOT_MB}*1024))+4096))
 
 # Crea el disco y particionar
