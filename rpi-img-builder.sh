@@ -508,11 +508,11 @@ rm -f $R/root/.bash_history
 
 # Calcule el espacio para crear la imagen.
 ROOTSIZE=$(du -s -B1 ${R} --exclude=${R}/boot | cut -f1)
-ROOTSIZE=$((+${ROOTSIZE}/1024+131072/1000*5*1024/5))
+ROOTSIZE=$((+${ROOTSIZE}/1024/1000*5*1024/5))
 RAW_SIZE=$(($((${FREE_SPACE}*1024))+${ROOTSIZE}+$((${BOOT_MB}*1024))+4096))
 
 # Crea el disco y particionar
-dd if=/dev/zero of=${IMGNAME}.img status=progress iflag=fullblock bs=1KiB count=${RAW_SIZE}
+fallocate -l $(echo ${RAW_SIZE}Ki | numfmt --from=iec-i --to=si) ${IMGNAME}.img
 parted -s ${IMGNAME}.img mklabel msdos
 parted -s ${IMGNAME}.img mkpart primary fat32 1MiB $((${BOOT_MB}+1))MiB
 parted -s -a minimal ${IMGNAME}.img mkpart primary $((${BOOT_MB}+1))MiB 100%
