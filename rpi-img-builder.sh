@@ -33,8 +33,6 @@ FREE_SPACE="${FREE_SPACE:-"180"}"
 # Mirror de descarga
 DEB_MIRROR="http://deb.debian.org/debian"
 PI_MIRROR="http://raspbian.raspberrypi.org/raspbian/"
-# Github url
-REPOGIT="https://github.com/FrangaL"
 
 # Entorno de trabajo
 CURRENT_DIR="$(pwd)"
@@ -87,13 +85,13 @@ if [[ $NETWORK == "static" ]] ; then
     done
 elif [[ ! $IPV4  || ! $NETMASK || ! $ROUTER || ! $DNS ]]; then
     NETWORK=dhcp
-    DNSIP=${DNSIP:-8.8.8.8}
+    DNS=${DNS:-8.8.8.8}
 else
     NETWORK=static
 fi
 
 # Función para instalar dependencias del script
-APTOPTS="-q -y install --no-install-recommends -o APT::Install-Suggests=0"
+APTOPTS="-q -y install --no-install-recommends -o APT::Install-Suggests=0 -o Acquire::Retries=3"
 installdeps(){
 for PKG in $DEPS; do
   if [ $(dpkg-query -W -f='${Status}' ${PKG} 2>&1 |grep -c "ok installed") -eq 0 ];
@@ -104,7 +102,7 @@ done
 }
 
 # Instalar dependencias necesarias
-DEPS="binfmt-support dosfstools qemu-user-static subversion rsync wget lsof \
+DEPS="binfmt-support dosfstools qemu-user-static rsync wget lsof \
 systemd-container debootstrap parted eatmydata"
 installdeps
 
@@ -112,7 +110,7 @@ installdeps
 DEBOOTSTRAP_VER=$(debootstrap --version |  grep -o '[0-9.]\+' | head -1)
 if dpkg --compare-versions "$DEBOOTSTRAP_VER" lt "1.0.105"; then
     echo "Actualmente su versión de debootstrap no soporta el script" >&2
-    echo "Actualice debootstrap ${REPOGIT}/debootstrap" >&2
+    echo "Actualice debootstrap, versión mínima 1.0.105" >&2
     exit 1
 fi
 
@@ -121,10 +119,12 @@ if [[ "${ARCHITECTURE}" == "arm64" ]]; then
         QEMUARCH=qemu-aarch64
         QEMUBIN="/usr/bin/qemu-aarch64-static"
         LIB_ARCH="aarch64-linux-gnu"
+        CMAKE_ARM="-DARM64=ON"
 elif [[ "${ARCHITECTURE}" == "armhf" ]]; then
         QEMUARCH=qemu-arm
         QEMUBIN="/usr/bin/qemu-arm-static"
-        LIB_ARCH="arm-linux-gnu"
+        LIB_ARCH="arm-linux-gnueabihf"
+        CMAKE_ARM="-DARM64=OFF"
 fi
 
 # Detectar modulo binfmt_misc cargado en el kernel
@@ -454,13 +454,31 @@ EOM
 fi
 
 # Raspberry PI userland tools
-if [[ "${OS}" == "debian" ]]; then
-svn --force export ${REPOGIT}/Userland/trunk/${ARCHITECTURE}/vc $R/opt/vc
-echo -e '/opt/vc/lib' > $R/etc/ld.so.conf.d/userland.conf
-echo -e 'PATH=$PATH:/opt/vc/bin' > $R/etc/profile.d/userland.sh
-chmod +x $R/etc/profile.d/userland.sh
-systemd-nspawn_exec ldconfig
-fi
+git clone https://github.com/raspberrypi/userland.git $R/userland
+cat <<EOF >$R/userland/compile.sh
+#!/bin/bash -e
+dpkg --get-selections > /bkp-packages
+apt-get install -y cmake make g++ pkg-config git-core
+cd /userland && mkdir build
+pushd /userland/build
+cmake -DCMAKE_TOOLCHAIN_FILE="makefiles/cmake/toolchains/${LIB_ARCH}.cmake" $CMAKE_ARM ../
+make -j2 2>/dev/null
+make install
+echo -e "/opt/vc/lib" > /etc/ld.so.conf.d/userland.conf
+cat <<\EOT > /etc/profile.d/userland.sh
+[ -d /opt/vc/bin ] && PATH=\$PATH:/opt/vc/bin
+export PATH
+EOT
+chmod +x /etc/profile.d/userland.sh
+ldconfig
+# Limpiar el sistema de paquetes innecesarios.
+dpkg --clear-selections
+dpkg --set-selections < /bkp-packages
+apt-get -y dselect-upgrade
+apt-get -y remove --purge \$(dpkg -l | grep "^rc" | awk '{print \$2}')
+EOF
+chmod +x $R/userland/compile.sh
+systemd-nspawn_exec /userland/compile.sh
 
 # Reglas udev Raspberry PI
 cat <<\EOF >$R/etc/udev/rules.d/55-rpi.rules
@@ -499,11 +517,13 @@ if [ -n "$PROXY_URL" ]; then
   unset http_proxy
   rm -rf ${R}/etc/apt/apt.conf.d/66proxy
 fi
-rm -f $R/etc/profile.d/find-lib.sh
 rm -f $R/usr/bin/dpkg
 systemd-nspawn_exec dpkg-divert --remove --rename /usr/bin/dpkg
 for logs in `find $R/var/log -type f`; do > $logs; done
 rm -f $R/usr/bin/qemu*
+rm -f $R/bkp-packages
+rm -rf $R/userland
+rm -rf $R/opt/vc/src
 rm -f $R/root/.bash_history
 
 # Calcule el espacio para crear la imagen.
