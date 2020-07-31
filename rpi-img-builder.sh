@@ -102,8 +102,8 @@ done
 }
 
 # Instalar dependencias necesarias
-DEPS="binfmt-support dosfstools qemu-user-static rsync wget lsof git kmod\
-systemd-container debootstrap parted eatmydata"
+DEPS="binfmt-support dosfstools qemu-user-static rsync wget lsof git kmod udev \
+systemd-container debootstrap parted eatmydata xz-utils"
 installdeps
 
 # Checkear versión mínima debootstrap
