@@ -102,7 +102,7 @@ done
 }
 
 # Instalar dependencias necesarias
-DEPS="binfmt-support dosfstools qemu-user-static rsync wget lsof \
+DEPS="binfmt-support dosfstools qemu-user-static rsync wget lsof git kmod\
 systemd-container debootstrap parted eatmydata"
 installdeps
 
@@ -589,7 +589,8 @@ if [[ $COMPRESS == gzip ]]; then
   echo "gzip -c ${IMGNAME}.gz|sudo dd of=/dev/sdX bs=64k oflag=dsync status=progress"
   chmod 664 ${IMGNAME}.gz
 elif [[ $COMPRESS == xz ]]; then
-  xz "${IMGNAME}"
+  [ $(nproc) \< 3 ] || CPU_CORES=3 # CPU_CORES = Número de núcleos a usar
+  xz -T $CPU_CORES -v "${IMGNAME}"
   chmod 664 ${IMGNAME}.xz
   echo "xzcat ${IMGNAME}.xz|sudo dd of=/dev/sdX bs=64k oflag=dsync status=progress"
 else
