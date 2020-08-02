@@ -91,10 +91,11 @@ else
 fi
 
 # Función para instalar dependencias del script
+apt-get update
 APTOPTS="-q -y install --no-install-recommends -o APT::Install-Suggests=0 -o Acquire::Retries=3"
 installdeps(){
 for PKG in $DEPS; do
-  if [ $(dpkg-query -W -f='${Status}' ${PKG} 2>&1 |grep -c "ok installed") -eq 0 ];
+  if [ $(dpkg-query -W -f='${Status}' ${PKG} 2>&1 | grep -c "ok installed") -eq 0 ];
   then
     apt-get $APTOPTS ${PKG};
   fi
@@ -102,8 +103,8 @@ done
 }
 
 # Instalar dependencias necesarias
-DEPS="binfmt-support dosfstools qemu-user-static rsync wget lsof git kmod udev \
-systemd-container debootstrap parted eatmydata xz-utils"
+DEPS="binfmt-support dosfstools qemu-user-static rsync wget lsof git parted \
+systemd-container debootstrap eatmydata xz-utils kmod udev"
 installdeps
 
 # Checkear versión mínima debootstrap
