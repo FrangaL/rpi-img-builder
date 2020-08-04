@@ -132,9 +132,9 @@ fi
 MODBINFMT=$(lsmod | grep binfmt_misc | awk '{print $1}')
 BINFMTS=`update-binfmts --display ${QEMUARCH}|awk '{if(NR==1) print $2}'|sed 's/.//;s/..$//'`
 if [ -z "${MODBINFMT}" ]; then
-  modprobe binfmt_misc
+  modprobe binfmt_misc &>/dev/null
 elif [ "${BINFMTS}" == "disabled" ]; then
-  update-binfmts --enable $QEMUARCH
+  update-binfmts --enable $QEMUARCH &>/dev/null
 fi
 
 # Entorno systemd-nspawn
@@ -358,14 +358,14 @@ ln -nfs /usr/share/zoneinfo/$TIMEZONE /etc/localtime
 dpkg-reconfigure -fnoninteractive tzdata
 EOF
 
+# Instalando kernel
+systemd-nspawn_exec eatmydata apt-get update
+systemd-nspawn_exec eatmydata apt-get $APTOPTS ${KERNEL_IMAGE}
+
 # Configuración SWAP
 echo 'vm.swappiness = 50' >> $R/etc/sysctl.conf
 systemd-nspawn_exec apt-get install -y dphys-swapfile
 sed -i 's/#CONF_SWAPSIZE=/CONF_SWAPSIZE=128/g' $R/etc/dphys-swapfile
-
-# Instalando kernel
-systemd-nspawn_exec eatmydata apt-get update
-systemd-nspawn_exec eatmydata apt-get $APTOPTS ${KERNEL_IMAGE}
 
 # Configuración firmware
 if [ $OS = raspbian ]; then
@@ -590,7 +590,7 @@ if [[ $COMPRESS == gzip ]]; then
   echo "gzip -c ${IMGNAME}.gz|sudo dd of=/dev/sdX bs=64k oflag=dsync status=progress"
   chmod 664 ${IMGNAME}.gz
 elif [[ $COMPRESS == xz ]]; then
-  [ $(nproc) \< 3 ] || CPU_CORES=3 # CPU_CORES = Número de núcleos a usar
+  [ $(nproc) \< 3 ] || CPU_CORES=4 # CPU_CORES = Número de núcleos a usar
   xz -T $CPU_CORES -v "${IMGNAME}"
   chmod 664 ${IMGNAME}.xz
   echo "xzcat ${IMGNAME}.xz|sudo dd of=/dev/sdX bs=64k oflag=dsync status=progress"
