@@ -144,13 +144,12 @@ systemd-nspawn_exec(){
 
 # Base debootstrap
 COMPONENTS="main,contrib,non-free"
-MINPKGS="ifupdown,openresolv,net-tools,locales,init,dbus,rsyslog,cron,sudo"
-EXTRAPKGS="openssh-server,dialog,parted,dhcpcd5,eatmydata,gnupg,gnupg2,wget"
+MINPKGS="ifupdown,openresolv,net-tools,init,dbus,rsyslog,cron,eatmydata"
+EXTRAPKGS="openssh-server,dialog,parted,dhcpcd5,sudo,gnupg,gnupg2,wget,locales"
 FIRMWARES="firmware-brcm80211,firmware-misc-nonfree,firmware-atheros,firmware-realtek"
 WIRELESSPKGS="wireless-tools,wpasupplicant,crda,wireless-tools,rfkill"
 BLUETOOTH="bluetooth,bluez,bluez-tools"
 INCLUDEPKGS=${MINPKGS},${EXTRAPKGS},${FIRMWARES},${WIRELESSPKGS},${BLUETOOTH}
-ADDPKG=${ADDPKG:-}
 
 if [ ! -z "$ADDPKG" ]; then
   INCLUDEPKGS=${MINPKGS},${EXTRAPKGS},${FIRMWARES},${WIRELESSPKGS},${BLUETOOTH},${ADDPKG}
@@ -171,21 +170,21 @@ if [[ "${OS}" == "debian" ]]; then
     fi
     # Seleccionar kernel y bootloader
     case ${OS}+${ARCHITECTURE} in
-      debian+*|*+arm64) KERNEL_IMAGE="linux-image-arm64 raspi3-firmware";;
-      debian+*|*+armhf) KERNEL_IMAGE="linux-image-armmp raspi3-firmware";;
+      debian*arm64) KERNEL_IMAGE="linux-image-arm64 raspi3-firmware";;
+      debian*armhf) KERNEL_IMAGE="linux-image-armmp raspi3-firmware";;
     esac
 elif [[ "${OS}" == "raspbian" ]]; then
     MIRROR=$PI_MIRROR
     BOOT="/boot"
     KERNEL_IMAGE="raspberrypi-kernel raspberrypi-bootloader"
     case ${OS}+${ARCHITECTURE} in
-      raspbian+*|*+arm64)
+      raspbian*arm64)
       KERNEL_PI=kernel8.img
       MIRROR_PIOS=$(echo ${MIRROR/${OS}/archive}|sed 's/raspbian/debian/g')
       KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
       KEYRING_PKG=$MIRROR_PIOS/pool/main/r/raspberrypi-archive-keyring/raspberrypi-archive-keyring_2016.10.31_all.deb
       BOOTSTRAP_URL=$DEB_MIRROR;;
-      raspbian+*|*+armhf)
+      raspbian*armhf)
       KERNEL_PI=kernel7l.img
       KEYRING=/usr/share/keyrings/raspberrypi-archive-keyring.gpg
       BOOTSTRAP_URL=$(echo ${MIRROR/${OS}/archive}|sed 's/raspbian/debian/g');;
