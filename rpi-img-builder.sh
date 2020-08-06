@@ -591,7 +591,7 @@ if [[ $COMPRESS == gzip ]]; then
   chmod 664 ${IMGNAME}.gz
 elif [[ $COMPRESS == xz ]]; then
   [ $(nproc) \< 3 ] || CPU_CORES=4 # CPU_CORES = Número de núcleos a usar
-  xz -T $CPU_CORES -v "${IMGNAME}"
+  xz -T ${CPU_CORES:-2} "${IMGNAME}"
   chmod 664 ${IMGNAME}.xz
   echo "xzcat ${IMGNAME}.xz|sudo dd of=/dev/sdX bs=64k oflag=dsync status=progress"
 else
