@@ -30,9 +30,10 @@ FSTYPE=${FSTYPE:-"ext4"}
 BOOT_MB="${BOOT_MB:-"136"}"
 FREE_SPACE="${FREE_SPACE:-"180"}"
 
-# Mirror de descarga
+# Mirrors de descarga
 DEB_MIRROR="http://deb.debian.org/debian"
 PI_MIRROR="http://raspbian.raspberrypi.org/raspbian/"
+RASP_MIRROR="http://archive.raspbian.org/raspbian/"
 
 # Entorno de trabajo
 CURRENT_DIR="$(pwd)"
@@ -106,6 +107,7 @@ done
 DEPS="binfmt-support dosfstools qemu-user-static rsync wget lsof git parted \
 systemd-container debootstrap eatmydata xz-utils kmod udev"
 installdeps
+apt-get install -y gnupg
 
 # Checkear versión mínima debootstrap
 DEBOOTSTRAP_VER=$(debootstrap --version |  grep -o '[0-9.]\+' | head -1)
@@ -162,33 +164,39 @@ if [[ "${OS}" == "debian" ]]; then
     KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
     KEYRING_FILE=debian-archive-keyring_2019.1_all.deb
     KEYRING_PKG=${DEB_MIRROR}/pool/main/d/debian-archive-keyring/${KEYRING_FILE}
-    if [ ! -f ${KEYRING} ]; then
-      TMP_KEY="$(mktemp -d)"
-      wget $KEYRING_PKG -O ${TMP_KEY}/raspberrypi-archive-keyring.deb
-      dpkg -i ${TMP_KEY}/${KEYRING_FILE}
-      rm -rf ${TMP_KEY}
-    fi
     # Seleccionar kernel y bootloader
     case ${OS}+${ARCHITECTURE} in
       debian*arm64) KERNEL_IMAGE="linux-image-arm64 raspi3-firmware";;
       debian*armhf) KERNEL_IMAGE="linux-image-armmp raspi3-firmware";;
     esac
 elif [[ "${OS}" == "raspbian" ]]; then
-    MIRROR=$PI_MIRROR
     BOOT="/boot"
     KERNEL_IMAGE="raspberrypi-kernel raspberrypi-bootloader"
     case ${OS}+${ARCHITECTURE} in
       raspbian*arm64)
+      MIRROR=$PI_MIRROR
       KERNEL_PI=kernel8.img
       MIRROR_PIOS=$(echo ${MIRROR/${OS}/archive}|sed 's/raspbian/debian/g')
       KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
-      KEYRING_PKG=$MIRROR_PIOS/pool/main/r/raspberrypi-archive-keyring/raspberrypi-archive-keyring_2016.10.31_all.deb
+      KEYRING_FILE=raspberrypi-archive-keyring_2016.10.31_all.deb
+      KEYRING_PKG=$MIRROR_PIOS/pool/main/r/raspberrypi-archive-keyring/$KEYRING_FILE
       BOOTSTRAP_URL=$DEB_MIRROR;;
       raspbian*armhf)
+      MIRROR=$RASP_MIRROR
       KERNEL_PI=kernel7l.img
-      KEYRING=/usr/share/keyrings/raspberrypi-archive-keyring.gpg
-      BOOTSTRAP_URL=$(echo ${MIRROR/${OS}/archive}|sed 's/raspbian/debian/g');;
+      KEYRING_FILE=raspbian-archive-keyring_20120528.2_all.deb
+      KEYRING_PKG=${RASP_MIRROR}/pool/main/r/raspbian-archive-keyring/$KEYRING_FILE
+      KEYRING=/usr/share/keyrings/raspbian-archive-keyring.gpg
+      BOOTSTRAP_URL=$RASP_MIRROR;;
     esac
+fi
+
+# Instalar certificados
+if [ ! -f ${KEYRING} ]; then
+  TMP_KEY="$(mktemp -d)"
+  wget $KEYRING_PKG -O ${TMP_KEY}/archive-keyring.deb
+  dpkg -i ${TMP_KEY}/archive-keyring.deb
+  rm -rf ${TMP_KEY}
 fi
 
 # Habilitar proxy http first stage
@@ -250,12 +258,12 @@ deb ${MIRROR} ${RELEASE}-updates ${COMPONENTS//,/ }
 #deb-src ${MIRROR} ${RELEASE}-updates ${COMPONENTS//,/ }
 EOM
 elif [[ "${OS}" == "raspbian" ]]; then
-if [[ "${ARCHITECTURE}" == "arm64" ]]; then
 systemd-nspawn_exec << _EOF
-wget $KEYRING_PKG -O /root/raspberrypi-archive-keyring.deb
-dpkg -i /root/raspberrypi-archive-keyring.deb
-rm -rf /root/raspberrypi-archive-keyring.deb
+wget $KEYRING_PKG -O /root/archive-keyring.deb
+dpkg -i /root/archive-keyring.deb
+rm -rf /root/archive-keyring.deb
 _EOF
+if [[ "${ARCHITECTURE}" == "arm64" ]]; then
 cat <<EOM >$R/etc/apt/sources.list
 deb ${DEB_MIRROR} ${RELEASE} ${COMPONENTS//,/ }
 #deb-src ${DEB_MIRROR} ${RELEASE} ${COMPONENTS//,/ }
@@ -269,9 +277,12 @@ cat <<EOM >$R/etc/apt/sources.list
 deb ${MIRROR} ${RELEASE} ${COMPONENTS//,/ }
 #deb-src ${MIRROR} ${RELEASE} ${COMPONENTS//,/ }
 EOM
+MIRROR=$(echo ${PI_MIRROR/${OS}/archive} | sed 's/raspbian/debian/g')
+systemd-nspawn_exec wget -qO /root/raspberrypi.gpg.key $MIRROR/raspberrypi.gpg.key
+systemd-nspawn_exec apt-key add /root/raspberrypi.gpg.key
 cat <<EOM >$R/etc/apt/sources.list.d/raspi.list
-deb $MIRROR_PIOS $RELEASE main
-#deb-src $MIRROR_PIOS $RELEASE main
+deb $MIRROR $RELEASE main
+#deb-src $MIRROR $RELEASE main
 EOM
 fi
 fi
@@ -544,7 +555,6 @@ ROOT_LOOP="${LOOPDEVICE}p2"
 
 # Formatear particiones
 mkfs.vfat -n BOOT -F 32 -v "$BOOT_LOOP"
-
 if [[ $FSTYPE == f2fs ]]; then
   mkfs.f2fs -f -l ROOTFS  "$ROOT_LOOP"
 elif [[ $FSTYPE == ext4 ]]; then
@@ -563,13 +573,13 @@ mount "$BOOT_LOOP" "$MOUNTDIR/$BOOT"
 rsync -aHAXx --exclude boot "${R}/" "${MOUNTDIR}/"
 rsync -rtx "${R}/boot" "${MOUNTDIR}/"
 
+# Desmontar sistema de archivos y eliminar compilación
 umount "$MOUNTDIR/$BOOT"
 umount "$MOUNTDIR"
 rm -rf $BASEDIR
 
 # Chequear particiones
 dosfsck -w -r -l -a -t "$BOOT_LOOP"
-
 if [[ $FSTYPE == f2fs ]]; then
   fsck.f2fs -y -f "$ROOT_LOOP"
 elif [[ $FSTYPE == ext4 ]]; then
@@ -581,18 +591,13 @@ losetup -d "${LOOPDEVICE}"
 
 IMGNAME=${IMGNAME}.img
 chmod 664 ${IMGNAME}
-clear
 
 # Comprimir imagen
 if [[ $COMPRESS == gzip ]]; then
   gzip "${IMGNAME}"
-  echo "gzip -c ${IMGNAME}.gz|sudo dd of=/dev/sdX bs=64k oflag=dsync status=progress"
   chmod 664 ${IMGNAME}.gz
 elif [[ $COMPRESS == xz ]]; then
   [ $(nproc) \< 3 ] || CPU_CORES=4 # CPU_CORES = Número de núcleos a usar
   xz -T ${CPU_CORES:-2} "${IMGNAME}"
   chmod 664 ${IMGNAME}.xz
-  echo "xzcat ${IMGNAME}.xz|sudo dd of=/dev/sdX bs=64k oflag=dsync status=progress"
-else
-  echo "sudo dd if=${IMGNAME} of=/dev/sdX bs=64k oflag=dsync status=progress"
 fi
