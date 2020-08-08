@@ -500,6 +500,7 @@ EOM
 fi
 
 # Raspberry PI userland tools
+if [ "${VARIANT}" != "slim" ]; then
 git clone https://github.com/raspberrypi/userland.git $R/userland
 cat <<EOF >$R/userland/compile.sh
 #!/bin/bash -e
@@ -532,21 +533,19 @@ cat <<\EOF >$R/etc/udev/rules.d/55-rpi.rules
 SUBSYSTEM=="vchiq",GROUP="video",MODE="0660"
 SUBSYSTEM=="vc-sm",GROUP="video",MODE="0660"
 SUBSYSTEM=="bcm2708_vcio",GROUP="video",MODE="0660"
-
 SUBSYSTEM=="input", GROUP="input", MODE="0660"
 SUBSYSTEM=="i2c-dev", GROUP="i2c", MODE="0660"
 SUBSYSTEM=="spidev", GROUP="spi", MODE="0660"
 SUBSYSTEM=="bcm2835-gpiomem", GROUP="gpio", MODE="0660"
 SUBSYSTEM=="tty", KERNEL=="tty[0-9]*", GROUP="tty", MODE="0660"
-
 SUBSYSTEM=="gpio", GROUP="gpio", MODE="0660"
-
 SUBSYSTEM=="gpio*", PROGRAM="/bin/sh -c '\
     chown -R root:gpio /sys/class/gpio && chmod -R 770 /sys/class/gpio;\
     chown -R root:gpio /sys/devices/virtual/gpio && chmod -R 770 /sys/devices/virtual/gpio;\
     chown -R root:gpio /sys$devpath && chmod -R 770 /sys$devpath\
 '"
 EOF
+fi
 
 # Limpiar sistema
 if [[ "${VARIANT}" == "slim" ]]; then
@@ -563,7 +562,6 @@ rm -rf $R/var/cache/apt/archives/*
 rm -rf $R/var/cache/apt/*.bin
 rm -rf $R/var/cache/debconf/*-old
 rm -rf $R/var/lib/dpkg/*-old
-
 rm -rf /etc/ssh/ssh_host_*
 if [ -n "$PROXY_URL" ]; then
   unset http_proxy
