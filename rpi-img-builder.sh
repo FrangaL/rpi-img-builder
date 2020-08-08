@@ -25,10 +25,12 @@ COMPRESS=${COMPRESS:-"none"}
 LOCALES=${LOCALES:-"es_ES.UTF-8"}
 TIMEZONE=${TIMEZONE:-"Europe/Madrid"}
 ARCHITECTURE=${ARCHITECTURE:-"arm64"}
-IMGNAME=${OS}-${RELEASE}-${ARCHITECTURE}
+VARIANT=${VARIANT:-"lite"}
+IMGNAME=${OS}-${RELEASE}-${ARCHITECTURE}-${VARIANT}
 FSTYPE=${FSTYPE:-"ext4"}
 BOOT_MB="${BOOT_MB:-"136"}"
 FREE_SPACE="${FREE_SPACE:-"180"}"
+MACHINE=$(tr -cd 'A-Za-z0-9' < /dev/urandom | head -c16 ; echo)
 
 # Mirrors de descarga
 DEB_MIRROR="http://deb.debian.org/debian"
@@ -60,7 +62,7 @@ fi
 # Cargar configuración de la compilacióm
 if [ -f ./config.txt ]; then
     source ./config.txt
-    IMGNAME=${OS}-${RELEASE}-${ARCHITECTURE}
+    IMGNAME=${OS}-${RELEASE}-${ARCHITECTURE}-${VARIANT}
 fi
 
 # Función de configuración de red
@@ -141,7 +143,7 @@ fi
 
 # Entorno systemd-nspawn
 systemd-nspawn_exec(){
-  LANG=C systemd-nspawn -q --bind ${QEMUBIN} --capability=cap_setfcap -M ${HOST_NAME} -D ${R} "$@"
+  LANG=C systemd-nspawn -q --bind ${QEMUBIN} --capability=cap_setfcap -M ${MACHINE} -D ${R} "$@"
 }
 
 # Base debootstrap
@@ -280,6 +282,7 @@ EOM
 MIRROR=$(echo ${PI_MIRROR/${OS}/archive} | sed 's/raspbian/debian/g')
 systemd-nspawn_exec wget -qO /root/raspberrypi.gpg.key $MIRROR/raspberrypi.gpg.key
 systemd-nspawn_exec apt-key add /root/raspberrypi.gpg.key
+rm -rf $R/root/raspberrypi.gpg.key
 cat <<EOM >$R/etc/apt/sources.list.d/raspi.list
 deb $MIRROR $RELEASE main
 #deb-src $MIRROR $RELEASE main
