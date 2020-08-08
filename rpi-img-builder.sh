@@ -508,7 +508,7 @@ apt-get install -y cmake make g++ pkg-config git-core
 cd /userland && mkdir build
 pushd /userland/build
 cmake -DCMAKE_TOOLCHAIN_FILE="makefiles/cmake/toolchains/${LIB_ARCH}.cmake" \
--DCMAKE_BUILD_TYPE=release -DARM64=OFF -DALL_APPS=ON $CMAKE_ARM ../
+-DCMAKE_BUILD_TYPE=release -DALL_APPS=OFF $CMAKE_ARM ../
 make -j$(nproc) 2>/dev/null
 make install
 echo -e "/opt/vc/lib" > /etc/ld.so.conf.d/userland.conf
