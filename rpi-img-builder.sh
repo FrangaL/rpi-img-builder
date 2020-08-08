@@ -95,7 +95,7 @@ fi
 
 # Función para instalar dependencias del script
 apt-get update
-APTOPTS="-q -y install --no-install-recommends -o APT::Install-Suggests=0 -o Acquire::Retries=3"
+APTOPTS="-q -y install --no-install-recommends -o APT::Install-Suggests=0 -o dpkg::options::=--force-confnew -o Acquire::Retries=3"
 installdeps(){
 for PKG in $DEPS; do
   if [ $(dpkg-query -W -f='${Status}' ${PKG} 2>&1 | grep -c "ok installed") -eq 0 ];
@@ -147,17 +147,13 @@ systemd-nspawn_exec(){
 }
 
 # Base debootstrap
-COMPONENTS="main,contrib,non-free"
-MINPKGS="ifupdown,openresolv,net-tools,init,dbus,rsyslog,cron,eatmydata"
-EXTRAPKGS="openssh-server,dialog,parted,dhcpcd5,sudo,gnupg,gnupg2,wget,locales"
-FIRMWARES="firmware-brcm80211,firmware-misc-nonfree,firmware-atheros,firmware-realtek"
-WIRELESSPKGS="wireless-tools,wpasupplicant,crda,wireless-tools,rfkill"
-BLUETOOTH="bluetooth,bluez,bluez-tools"
-INCLUDEPKGS=${MINPKGS},${EXTRAPKGS},${FIRMWARES},${WIRELESSPKGS},${BLUETOOTH}
-
-if [ ! -z "$ADDPKG" ]; then
-  INCLUDEPKGS=${MINPKGS},${EXTRAPKGS},${FIRMWARES},${WIRELESSPKGS},${BLUETOOTH},${ADDPKG}
-fi
+COMPONENTS="main contrib non-free"
+MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron eatmydata"
+EXTRAPKGS="openssh-server dialog parted dhcpcd5 sudo gnupg gnupg2 wget locales"
+FIRMWARES="firmware-brcm80211 firmware-misc-nonfree firmware-atheros firmware-realtek"
+WIRELESSPKGS="wireless-tools wpasupplicant crda wireless-tools rfkill"
+BLUETOOTH="bluetooth bluez bluez-tools"
+DESKTOP=""
 
 if [[ "${OS}" == "debian" ]]; then
     BOOT="/boot/firmware"
@@ -213,8 +209,8 @@ elif [ "$APT_CACHER" = "apt-cacher-ng" ] ; then
 fi
 
 # First stage
-eatmydata debootstrap --foreign --arch=${ARCHITECTURE} --components=${COMPONENTS} \
---keyring=$KEYRING --variant - --include=${INCLUDEPKGS} $RELEASE $R $BOOTSTRAP_URL
+eatmydata debootstrap --foreign --arch=${ARCHITECTURE} --components=${COMPONENTS// /,} \
+--keyring=$KEYRING --variant - --include=${MINPKGS// /,} $RELEASE $R $BOOTSTRAP_URL
 
 # Habilitar proxy http second stage
 if [ -n "$PROXY_URL" ]; then
@@ -244,20 +240,38 @@ exec "\$0-eatmydata" --force-unsafe-io "\$@"
 EOF
 chmod 755 $R/usr/bin/dpkg
 
+if [[ "${VARIANT}" == "slim" ]]; then
+echo 'APT::Install-Recommends "false";'              > $R/etc/apt/apt.conf.d/99_norecommends
+echo 'APT::AutoRemove::RecommendsImportant "false";' >> $R/etc/apt/apt.conf.d/99_norecommends
+echo 'APT::AutoRemove::SuggestsImportant "false";'   >> $R/etc/apt/apt.conf.d/99_norecommends
+cat > $R/etc/dpkg/dpkg.cfg.d/01_no_doc_locale <<EOF
+path-exclude /usr/share/doc/*
+path-include /usr/share/doc/*/copyright
+path-exclude /usr/share/man/*
+path-exclude /usr/share/groff/*
+path-exclude /usr/share/info/*
+path-exclude /usr/share/lintian/*
+path-exclude /usr/share/linda/*
+path-exclude /usr/share/locale/*
+path-include /usr/share/locale/en*
+path-include /usr/share/locale/es*
+EOF
+fi
+
 # Second stage
 systemd-nspawn_exec eatmydata /debootstrap/debootstrap --second-stage
 
 # Definir sources.list
 if [[ "${OS}" == "debian" ]]; then
 cat <<EOM >$R/etc/apt/sources.list
-deb ${MIRROR} ${RELEASE} ${COMPONENTS//,/ }
-#deb-src ${MIRROR} ${RELEASE} ${COMPONENTS//,/ }
+deb ${MIRROR} ${RELEASE} ${COMPONENTS}
+#deb-src ${MIRROR} ${RELEASE} ${COMPONENTS}
 
-deb ${MIRROR}-security/ ${RELEASE}/updates ${COMPONENTS//,/ }
-#deb-src ${MIRROR}-security/ ${RELEASE}/updates ${COMPONENTS//,/ }
+deb ${MIRROR}-security/ ${RELEASE}/updates ${COMPONENTS}
+#deb-src ${MIRROR}-security/ ${RELEASE}/updates ${COMPONENTS}
 
-deb ${MIRROR} ${RELEASE}-updates ${COMPONENTS//,/ }
-#deb-src ${MIRROR} ${RELEASE}-updates ${COMPONENTS//,/ }
+deb ${MIRROR} ${RELEASE}-updates ${COMPONENTS}
+#deb-src ${MIRROR} ${RELEASE}-updates ${COMPONENTS}
 EOM
 elif [[ "${OS}" == "raspbian" ]]; then
 systemd-nspawn_exec << _EOF
@@ -267,8 +281,8 @@ rm -rf /root/archive-keyring.deb
 _EOF
 if [[ "${ARCHITECTURE}" == "arm64" ]]; then
 cat <<EOM >$R/etc/apt/sources.list
-deb ${DEB_MIRROR} ${RELEASE} ${COMPONENTS//,/ }
-#deb-src ${DEB_MIRROR} ${RELEASE} ${COMPONENTS//,/ }
+deb ${DEB_MIRROR} ${RELEASE} ${COMPONENTS}
+#deb-src ${DEB_MIRROR} ${RELEASE} ${COMPONENTS}
 EOM
 cat <<EOM >$R/etc/apt/sources.list.d/raspi.list
 deb $MIRROR_PIOS $RELEASE main
@@ -276,8 +290,8 @@ deb $MIRROR_PIOS $RELEASE main
 EOM
 elif [[ "${ARCHITECTURE}" == "armhf" ]]; then
 cat <<EOM >$R/etc/apt/sources.list
-deb ${MIRROR} ${RELEASE} ${COMPONENTS//,/ }
-#deb-src ${MIRROR} ${RELEASE} ${COMPONENTS//,/ }
+deb ${MIRROR} ${RELEASE} ${COMPONENTS}
+#deb-src ${MIRROR} ${RELEASE} ${COMPONENTS}
 EOM
 MIRROR=$(echo ${PI_MIRROR/${OS}/archive} | sed 's/raspbian/debian/g')
 systemd-nspawn_exec wget -qO /root/raspberrypi.gpg.key $MIRROR/raspberrypi.gpg.key
@@ -350,6 +364,24 @@ echo spi i2c gpio | xargs -n 1 groupadd -r
 usermod -a -G adm,dialout,sudo,audio,video,plugdev,users,netdev,input,spi,gpio,i2c pi
 _EOF
 
+# Instalando kernel
+systemd-nspawn_exec eatmydata apt-get update
+systemd-nspawn_exec eatmydata apt-get $APTOPTS ${KERNEL_IMAGE}
+
+if [[ "${VARIANT}" == "slim" ]]; then
+  INCLUDEPKGS="${EXTRAPKGS} ${FIRMWARES} ${WIRELESSPKGS}"
+elif [[ "${VARIANT}" == "lite" ]]; then
+  INCLUDEPKGS="${EXTRAPKGS} ${FIRMWARES} ${WIRELESSPKGS} ${BLUETOOTH}"
+elif [[ "${VARIANT}" == "desktop" ]]; then
+  INCLUDEPKGS="${EXTRAPKGS} ${FIRMWARES} ${WIRELESSPKGS} ${BLUETOOTH} ${DESKTOP}"
+fi
+if [ ! -z "$ADDPKG" ]; then
+  INCLUDEPKGS="${INCLUDEPKGS} ${ADDPKG}"
+fi
+
+# Instalar paquetes extra
+systemd-nspawn_exec eatmydata apt-get $APTOPTS $INCLUDEPKGS
+
 # Tunning config
 echo | sed -e '/^#/d ; /^ *$/d' | systemd-nspawn_exec << \EOF
 # Añadir nombre de host
@@ -359,6 +391,13 @@ chmod 755 /usr/sbin/rpi-resizerootfs
 systemctl enable rpi-resizerootfs.service
 # Activar servicio generación ket SSH
 systemctl enable generate-ssh-host-keys.service
+# Definir zona horaria
+ln -nfs /usr/share/zoneinfo/$TIMEZONE /etc/localtime
+dpkg-reconfigure -fnoninteractive tzdata
+EOF
+
+# Configurar locale
+echo | sed -e '/^#/d ; /^ *$/d' | systemd-nspawn_exec << \EOF
 # Añadir configuración locale
 sed -i 's/^# *\($LOCALES\)/\1/' /etc/locale.gen
 echo "LANG=${LOCALES}" >/etc/default/locale
@@ -366,14 +405,7 @@ echo "LANGUAGE=${LOCALES}" >>/etc/default/locale
 echo "LC_COLLATE=${LOCALES}" >>/etc/default/locale
 echo "LC_ALL=${LOCALES}" >>/etc/default/locale
 locale-gen
-# Definir zona horaria
-ln -nfs /usr/share/zoneinfo/$TIMEZONE /etc/localtime
-dpkg-reconfigure -fnoninteractive tzdata
 EOF
-
-# Instalando kernel
-systemd-nspawn_exec eatmydata apt-get update
-systemd-nspawn_exec eatmydata apt-get $APTOPTS ${KERNEL_IMAGE}
 
 # Configuración SWAP
 echo 'vm.swappiness = 50' >> $R/etc/sysctl.conf
@@ -516,16 +548,21 @@ SUBSYSTEM=="gpio*", PROGRAM="/bin/sh -c '\
 EOF
 
 # Limpiar sistema
+if [[ "${VARIANT}" == "slim" ]]; then
 find $R/usr/share/doc -depth -type f ! -name copyright | xargs rm
 find $R/usr/share/doc -empty | xargs rmdir
+rm -rf $R/usr/share/man/* $R/usr/share/info/*
+rm -rf $R/usr/share/lintian/*
+rm -rf $R/etc/apt/apt.conf.d/99_norecommends
+rm -rf $R/etc/dpkg/dpkg.cfg.d/01_no_doc_locale
+fi
 rm -rf $R/run/* $R/etc/*- $R/tmp/*
 rm -rf $R/var/lib/apt/lists/*
 rm -rf $R/var/cache/apt/archives/*
 rm -rf $R/var/cache/apt/*.bin
 rm -rf $R/var/cache/debconf/*-old
 rm -rf $R/var/lib/dpkg/*-old
-rm -rf $R/usr/share/man/* $R/usr/share/info/*
-rm -rf $R/usr/share/lintian/*
+
 rm -rf /etc/ssh/ssh_host_*
 if [ -n "$PROXY_URL" ]; then
   unset http_proxy
