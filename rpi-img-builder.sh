@@ -148,8 +148,8 @@ systemd-nspawn_exec(){
 
 # Base debootstrap
 COMPONENTS="main contrib non-free"
-MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron eatmydata"
-EXTRAPKGS="openssh-server dialog parted dhcpcd5 sudo gnupg gnupg2 wget locales"
+MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron eatmydata wget"
+EXTRAPKGS="openssh-server dialog parted dhcpcd5 sudo gnupg gnupg2 locales"
 FIRMWARES="firmware-brcm80211 firmware-misc-nonfree firmware-atheros firmware-realtek"
 WIRELESSPKGS="wireless-tools wpasupplicant crda wireless-tools rfkill"
 BLUETOOTH="bluetooth bluez bluez-tools"
