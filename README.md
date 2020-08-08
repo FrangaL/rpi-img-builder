@@ -11,7 +11,7 @@ El script instalara automáticamente todas las dependencias necesarias.
 Las dependencias necesarias son:
 
 qemu-user-static debian-archive-keyring debootstrap binfmt-support dosfstools
- subversion rsync gunzip xz-utils systemd-nspawn parted lsof f2fs-tools
+ git rsync gunzip xz-utils systemd-nspawn parted lsof f2fs-tools
 
 ## Configuración
 
@@ -129,12 +129,21 @@ Cambiar el tamaño de la partición BOOT.
     sudo BOOT_MB="150" ./rpi-img-builder.sh
 ```
 ---
-* `PROXY_URL` (Default: "empty" )
+* `PROXY_URL` (Default: "http://127.0.0.1:3142/" )
 
-Habilitar el uso de http proxy.
+El uso de http proxy se habilita automáticamente si tiene instalado en su sistemas
+apt-cacher-ng.
+
+Si desea deshabilitar el uso de proxy ejecute:
 
 ```shell
-    sudo PROXY_URL="http://localhost:3142" ./rpi-img-builder.sh
+    sudo PROXY_URL="none" ./rpi-img-builder.sh
+```
+
+Si desea utilizar un proxy externo ejecute:
+
+```shell
+    sudo PROXY_URL="http://external.proxy.loc:3142" ./rpi-img-builder.sh
 ```
 
 ## Ejemplos de uso
@@ -177,8 +186,10 @@ sudo ./rpi-img-builder.sh
 Conecte una tarjeta SD que le gustaría sobrescribir por completo en su lector de tarjetas SD.
 
 Suponiendo que su lector de tarjetas SD proporcione el dispositivo /dev/sdX
+
 Tenga cuidado si elige el dispositivo incorrecto, puede sobrescribir
 partes importantes de su sistema.
+
 Verifique que sea correcto dispositivo!, copie la imagen en la tarjeta SD:
 
 ```shell
