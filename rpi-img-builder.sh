@@ -507,8 +507,9 @@ dpkg --get-selections > /bkp-packages
 apt-get install -y cmake make g++ pkg-config git-core
 cd /userland && mkdir build
 pushd /userland/build
-cmake -DCMAKE_TOOLCHAIN_FILE="makefiles/cmake/toolchains/${LIB_ARCH}.cmake" $CMAKE_ARM ../
-make -j2 2>/dev/null
+cmake -DCMAKE_TOOLCHAIN_FILE="makefiles/cmake/toolchains/${LIB_ARCH}.cmake" \
+-DCMAKE_BUILD_TYPE=release -DARM64=OFF -DALL_APPS=ON $CMAKE_ARM ../
+make -j$(nproc) 2>/dev/null
 make install
 echo -e "/opt/vc/lib" > /etc/ld.so.conf.d/userland.conf
 cat <<\EOT > /etc/profile.d/userland.sh
