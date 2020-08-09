@@ -548,14 +548,6 @@ EOF
 fi
 
 # Limpiar sistema
-if [[ "${VARIANT}" == "slim" ]]; then
-find $R/usr/share/doc -depth -type f ! -name copyright | xargs rm
-find $R/usr/share/doc -empty | xargs rmdir
-rm -rf $R/usr/share/man/* $R/usr/share/info/*
-rm -rf $R/usr/share/lintian/*
-rm -rf $R/etc/apt/apt.conf.d/99_norecommends
-rm -rf $R/etc/dpkg/dpkg.cfg.d/01_no_doc_locale
-fi
 rm -rf $R/run/* $R/etc/*- $R/tmp/*
 rm -rf $R/var/lib/apt/lists/*
 rm -rf $R/var/cache/apt/archives/*
@@ -574,6 +566,16 @@ rm -f $R/usr/bin/qemu*
 rm -f $R/bkp-packages
 rm -rf $R/userland
 rm -rf $R/opt/vc/src
+if [[ "${VARIANT}" == "slim" ]]; then
+SLIM_PKGS="nano wget tasksel eatmydata libeatmydata1 dialog"
+systemd-nspawn_exec apt-get remove --purge $SLIM_PKGS
+find $R/usr/share/doc -depth -type f ! -name copyright | xargs rm
+find $R/usr/share/doc -empty | xargs rmdir
+rm -rf $R/usr/share/man/* $R/usr/share/info/*
+rm -rf $R/usr/share/lintian/*
+rm -rf $R/etc/apt/apt.conf.d/99_norecommends
+rm -rf $R/etc/dpkg/dpkg.cfg.d/01_no_doc_locale
+fi
 rm -f $R/root/.bash_history
 
 # Calcule el espacio para crear la imagen.
