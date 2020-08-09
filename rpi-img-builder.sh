@@ -26,7 +26,7 @@ LOCALES=${LOCALES:-"es_ES.UTF-8"}
 TIMEZONE=${TIMEZONE:-"Europe/Madrid"}
 ARCHITECTURE=${ARCHITECTURE:-"arm64"}
 VARIANT=${VARIANT:-"lite"}
-IMGNAME=${OS}-${RELEASE}-${ARCHITECTURE}-${VARIANT}
+IMGNAME=${OS}-${RELEASE}-${VARIANT}-${ARCHITECTURE}
 FSTYPE=${FSTYPE:-"ext4"}
 BOOT_MB="${BOOT_MB:-"136"}"
 FREE_SPACE="${FREE_SPACE:-"180"}"
@@ -62,7 +62,7 @@ fi
 # Cargar configuración de la compilacióm
 if [ -f ./config.txt ]; then
     source ./config.txt
-    IMGNAME=${OS}-${RELEASE}-${ARCHITECTURE}-${VARIANT}
+    IMGNAME=${OS}-${RELEASE}-${VARIANT}-${ARCHITECTURE}
 fi
 
 # Función de configuración de red
@@ -167,11 +167,11 @@ if [[ "${OS}" == "debian" ]]; then
       debian*arm64) KERNEL_IMAGE="linux-image-arm64 raspi3-firmware";;
       debian*armhf) KERNEL_IMAGE="linux-image-armmp raspi3-firmware";;
     esac
-elif [[ "${OS}" == "raspbian" ]]; then
+elif [[ "${OS}" == "raspios" ]]; then
     BOOT="/boot"
     KERNEL_IMAGE="raspberrypi-kernel raspberrypi-bootloader"
     case ${OS}+${ARCHITECTURE} in
-      raspbian*arm64)
+      raspios*arm64)
       MIRROR=$PI_MIRROR
       KERNEL_PI=kernel8.img
       MIRROR_PIOS=$(echo ${MIRROR/${OS}/archive}|sed 's/raspbian/debian/g')
@@ -179,7 +179,7 @@ elif [[ "${OS}" == "raspbian" ]]; then
       KEYRING_FILE=raspberrypi-archive-keyring_2016.10.31_all.deb
       KEYRING_PKG=$MIRROR_PIOS/pool/main/r/raspberrypi-archive-keyring/$KEYRING_FILE
       BOOTSTRAP_URL=$DEB_MIRROR;;
-      raspbian*armhf)
+      raspios*armhf)
       MIRROR=$RASP_MIRROR
       KERNEL_PI=kernel7l.img
       KEYRING_FILE=raspbian-archive-keyring_20120528.2_all.deb
@@ -273,7 +273,7 @@ deb ${MIRROR}-security/ ${RELEASE}/updates ${COMPONENTS}
 deb ${MIRROR} ${RELEASE}-updates ${COMPONENTS}
 #deb-src ${MIRROR} ${RELEASE}-updates ${COMPONENTS}
 EOM
-elif [[ "${OS}" == "raspbian" ]]; then
+elif [[ "${OS}" == "raspios" ]]; then
 systemd-nspawn_exec << _EOF
 wget $KEYRING_PKG -O /root/archive-keyring.deb
 dpkg -i /root/archive-keyring.deb
@@ -413,7 +413,7 @@ systemd-nspawn_exec apt-get install -y dphys-swapfile
 sed -i 's/#CONF_SWAPSIZE=/CONF_SWAPSIZE=128/g' $R/etc/dphys-swapfile
 
 # Configuración firmware
-if [ $OS = raspbian ]; then
+if [ $OS = raspios ]; then
 cat <<EOM >${R}${BOOT}/cmdline.txt
 net.ifnames=0 dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootfstype=$FSTYPE rootwait
 EOM
@@ -548,13 +548,6 @@ EOF
 fi
 
 # Limpiar sistema
-rm -rf $R/run/* $R/etc/*- $R/tmp/*
-rm -rf $R/var/lib/apt/lists/*
-rm -rf $R/var/cache/apt/archives/*
-rm -rf $R/var/cache/apt/*.bin
-rm -rf $R/var/cache/debconf/*-old
-rm -rf $R/var/lib/dpkg/*-old
-rm -rf /etc/ssh/ssh_host_*
 if [ -n "$PROXY_URL" ]; then
   unset http_proxy
   rm -rf ${R}/etc/apt/apt.conf.d/66proxy
@@ -576,6 +569,13 @@ rm -rf $R/usr/share/lintian/*
 rm -rf $R/etc/apt/apt.conf.d/99_norecommends
 rm -rf $R/etc/dpkg/dpkg.cfg.d/01_no_doc_locale
 fi
+rm -rf $R/run/* $R/etc/*- $R/tmp/*
+rm -rf $R/var/lib/apt/lists/*
+rm -rf $R/var/cache/apt/archives/*
+rm -rf $R/var/cache/apt/*.bin
+rm -rf $R/var/cache/debconf/*-old
+rm -rf $R/var/lib/dpkg/*-old
+rm -rf /etc/ssh/ssh_host_*
 rm -f $R/root/.bash_history
 
 # Calcule el espacio para crear la imagen.
