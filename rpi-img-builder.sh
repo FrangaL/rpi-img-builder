@@ -174,7 +174,7 @@ elif [[ "${OS}" == "raspios" ]]; then
       raspios*arm64)
       MIRROR=$PI_MIRROR
       KERNEL_PI=kernel8.img
-      MIRROR_PIOS=$(echo ${MIRROR/${OS}/archive}|sed 's/raspbian/debian/g')
+      MIRROR_PIOS=$(echo ${MIRROR/raspbian./archive.}|sed 's/raspbian/debian/g')
       KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
       KEYRING_FILE=raspberrypi-archive-keyring_2016.10.31_all.deb
       KEYRING_PKG=$MIRROR_PIOS/pool/main/r/raspberrypi-archive-keyring/$KEYRING_FILE
@@ -293,7 +293,7 @@ cat <<EOM >$R/etc/apt/sources.list
 deb ${MIRROR} ${RELEASE} ${COMPONENTS}
 #deb-src ${MIRROR} ${RELEASE} ${COMPONENTS}
 EOM
-MIRROR=$(echo ${PI_MIRROR/${OS}/archive} | sed 's/raspbian/debian/g')
+MIRROR=$(echo ${PI_MIRROR/raspbian./archive.} | sed 's/raspbian/debian/g')
 systemd-nspawn_exec wget -qO /root/raspberrypi.gpg.key $MIRROR/raspberrypi.gpg.key
 systemd-nspawn_exec apt-key add /root/raspberrypi.gpg.key
 rm -rf $R/root/raspberrypi.gpg.key
@@ -560,14 +560,14 @@ rm -f $R/bkp-packages
 rm -rf $R/userland
 rm -rf $R/opt/vc/src
 if [[ "${VARIANT}" == "slim" ]]; then
-SLIM_PKGS="nano wget tasksel eatmydata libeatmydata1 dialog"
-systemd-nspawn_exec apt-get -y remove --purge $SLIM_PKGS
-find $R/usr/share/doc -depth -type f ! -name copyright | xargs rm
-find $R/usr/share/doc -empty | xargs rmdir
-rm -rf $R/usr/share/man/* $R/usr/share/info/*
-rm -rf $R/usr/share/lintian/*
-rm -rf $R/etc/apt/apt.conf.d/99_norecommends
-rm -rf $R/etc/dpkg/dpkg.cfg.d/01_no_doc_locale
+  SLIM_PKGS="nano wget tasksel eatmydata libeatmydata1 dialog"
+  systemd-nspawn_exec apt-get -y remove --purge $SLIM_PKGS
+  find $R/usr/share/doc -depth -type f ! -name copyright | xargs rm
+  find $R/usr/share/doc -empty | xargs rmdir
+  rm -rf $R/usr/share/man/* $R/usr/share/info/*
+  rm -rf $R/usr/share/lintian/*
+  rm -rf $R/etc/apt/apt.conf.d/99_norecommends
+  rm -rf $R/etc/dpkg/dpkg.cfg.d/01_no_doc_locale
 fi
 rm -rf $R/run/* $R/etc/*- $R/tmp/*
 rm -rf $R/var/lib/apt/lists/*
