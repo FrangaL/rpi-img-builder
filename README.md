@@ -1,6 +1,6 @@
 # Raspberry Pi Image Builder
 
-_Herramienta para crear imágenes Debian/Raspbian arm64/armhf para Raspberry Pi 3B/3B+/4B_
+_Herramienta para crear imágenes Debian/Raspios arm64/armhf para Raspberry Pi 3B/3B+/4B_
 
 ## Dependencias
 
@@ -23,10 +23,18 @@ Las variables configurables son:
 ---
 * `OS` (Default: "debian")
 
-Podemos seleccionar diferentes sistemas operativos ( Debian / Raspbian).
+Podemos seleccionar diferentes sistemas operativos ( Debian / Raspios).
 
 ```shell
-  sudo OS="raspbian" ./rpi-img-builder.sh
+  sudo OS="raspios" ./rpi-img-builder.sh
+```
+---
+* `VARIANT` (Default: "lite")
+
+Puede elegir entra las variantes lite y slim con el sistema mínimo.
+
+```shell
+  sudo VARIANT="slim" ./rpi-img-builder.sh
 ```
 ---
 * `ARCHITECTURE` (Default: "arm64")
