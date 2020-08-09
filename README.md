@@ -10,8 +10,8 @@ El script instalara automáticamente todas las dependencias necesarias.
 
 Las dependencias necesarias son:
 
-qemu-user-static debian-archive-keyring debootstrap binfmt-support dosfstools
- git rsync gunzip xz-utils systemd-nspawn parted lsof f2fs-tools
+qemu-user-static debian-archive-keyring binfmt-support dosfstools rsync wget lsof
+git parted systemd-container debootstrap eatmydata xz-utils gnupg kmod udev
 
 ## Configuración
 
