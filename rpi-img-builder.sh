@@ -561,7 +561,7 @@ rm -rf $R/userland
 rm -rf $R/opt/vc/src
 if [[ "${VARIANT}" == "slim" ]]; then
 SLIM_PKGS="nano wget tasksel eatmydata libeatmydata1 dialog"
-systemd-nspawn_exec apt-get remove --purge $SLIM_PKGS
+systemd-nspawn_exec apt-get -y remove --purge $SLIM_PKGS
 find $R/usr/share/doc -depth -type f ! -name copyright | xargs rm
 find $R/usr/share/doc -empty | xargs rmdir
 rm -rf $R/usr/share/man/* $R/usr/share/info/*
