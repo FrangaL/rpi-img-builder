@@ -1,3 +1,5 @@
+[![CodeFactor](https://www.codefactor.io/repository/github/frangal/rpi-img-builder/badge/master)](https://www.codefactor.io/repository/github/frangal/rpi-img-builder/overview/master)
+
 # Raspberry Pi Image Builder
 
 _Herramienta para crear imágenes Debian/Raspios arm64/armhf para Raspberry Pi 3B/3B+/4B_
