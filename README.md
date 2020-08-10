@@ -57,18 +57,13 @@ Seleccionar el sistema de archivos de la partición /root entre ext4 y f2fs.
 ---
 * `NETWORK` (Default: "dhcp")
 
-Podemos definir una configuración de red estática con NETWORK=static
+Podemos definir manualmente la configuracion de red.
 
 ```shell
-  sudo NETWORK="static" ./rpi-img-builder.sh # Ejecuta el script de configuración de red
-```
-Tambien podemos definir manualmente la configuracion de red.
-
-```shell
-IPV4=192.168.10.100
-NETMASK=255.255.255.0
-ROUTER=192.168.10.1
-DNS=8.8.8.8.8
+echo IPV4="192.168.10.100"    >> config.txt
+echo NETMASK="255.255.255.0"  >> config.txt
+echo ROUTER="192.168.10.1"    >> config.txt
+echo DNS="8.8.8.8.8"          >> config.txt
 ```
 ---
 * `WIRELESS`
