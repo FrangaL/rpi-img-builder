@@ -65,28 +65,8 @@ if [ -f ./config.txt ]; then
     IMGNAME=${OS}-${RELEASE}-${VARIANT}-${ARCHITECTURE}
 fi
 
-# Función de configuración de red
-getnetwork(){
-  read -p "Ingrese la dirección IP:     ( 192.168.1.10 )  " IPV4
-  read -p "Ingrese la máscara de red:   ( 255.255.255.0 ) " NETMASK
-  read -p "Ingrese la IP de su Router:  ( 192.168.1.1 )   " ROUTER
-  read -p "Ingrese la IP de su DNS:     ( 8.8.8.8 )       " DNS
-}
-
 # Configuración de red
-if [[ $NETWORK == "static" ]] ; then
-    getnetwork
-    while true; do
-      clear
-      echo "IP: $IPV4 - Netmask: $NETMASK - Router: $ROUTER - DNS: $DNS"
-      read -p "Es correcta esta configuración? [y/n]: " yn
-      case $yn in
-        [Yy]* ) break;;
-        [Nn]* ) getnetwork;;
-            * ) echo "Por favor, introduzca Y o N!";;
-      esac
-    done
-elif [[ ! $IPV4  || ! $NETMASK || ! $ROUTER || ! $DNS ]]; then
+if [[ ! $IPV4  || ! $NETMASK || ! $ROUTER || ! $DNS ]]; then
     NETWORK=dhcp
     DNS=${DNS:-8.8.8.8}
 else
@@ -134,7 +114,7 @@ fi
 
 # Detectar modulo binfmt_misc cargado en el kernel
 MODBINFMT=$(lsmod | grep binfmt_misc | awk '{print $1}')
-BINFMTS=`update-binfmts --display ${QEMUARCH}|awk '{if(NR==1) print $2}'|sed 's/.//;s/..$//'`
+BINFMTS=$(update-binfmts --display ${QEMUARCH}|awk '{if(NR==1) print $2}'|sed 's/.//;s/..$//')
 if [ -z "${MODBINFMT}" ]; then
   modprobe binfmt_misc &>/dev/null
 elif [ "${BINFMTS}" == "disabled" ]; then
@@ -554,7 +534,7 @@ if [ -n "$PROXY_URL" ]; then
 fi
 rm -f $R/usr/bin/dpkg
 systemd-nspawn_exec dpkg-divert --remove --rename /usr/bin/dpkg
-for logs in `find $R/var/log -type f`; do > $logs; done
+for logs in $(find $R/var/log -type f); do > $logs; done
 rm -f $R/usr/bin/qemu*
 rm -f $R/bkp-packages
 rm -rf $R/userland
@@ -562,8 +542,8 @@ rm -rf $R/opt/vc/src
 if [[ "${VARIANT}" == "slim" ]]; then
   SLIM_PKGS="nano wget tasksel eatmydata libeatmydata1 dialog"
   systemd-nspawn_exec apt-get -y remove --purge $SLIM_PKGS
-  find $R/usr/share/doc -depth -type f ! -name copyright | xargs rm
-  find $R/usr/share/doc -empty | xargs rmdir
+  find $R/usr/share/doc -depth -type f ! -name copyright -print0 | xargs -0 rm
+  find $R/usr/share/doc -empty -print0 | xargs -0 rmdir
   rm -rf $R/usr/share/man/* $R/usr/share/info/*
   rm -rf $R/usr/share/lintian/*
   rm -rf $R/etc/apt/apt.conf.d/99_norecommends
