@@ -480,7 +480,7 @@ EOM
 fi
 
 # Raspberry PI userland tools
-if [ "${VARIANT}" != "slim" ]; then
+if [[ $OS = "debian" && ${VARIANT} = "lite" ]]; then
 git clone https://github.com/raspberrypi/userland.git $R/userland
 cat <<EOF >$R/userland/compile.sh
 #!/bin/bash -e
@@ -525,6 +525,8 @@ SUBSYSTEM=="gpio*", PROGRAM="/bin/sh -c '\
     chown -R root:gpio /sys$devpath && chmod -R 770 /sys$devpath\
 '"
 EOF
+elif [[ $OS = "raspios" && ${VARIANT} = "lite" ]]; then
+systemd-nspawn_exec apt-get install -y libraspberrypi-bin
 fi
 
 # Limpiar sistema
