@@ -28,7 +28,7 @@ Las variables configurables son:
 Podemos seleccionar diferentes sistemas operativos ( Debian / Raspios).
 
 ```shell
-  sudo OS="raspios" ./rpi-img-builder.sh
+sudo OS="raspios" ./rpi-img-builder.sh
 ```
 ---
 * `VARIANT` (Default: "lite")
@@ -36,7 +36,7 @@ Podemos seleccionar diferentes sistemas operativos ( Debian / Raspios).
 Puede elegir entra las variantes lite y slim con el sistema mínimo.
 
 ```shell
-  sudo VARIANT="slim" ./rpi-img-builder.sh
+sudo VARIANT="slim" ./rpi-img-builder.sh
 ```
 ---
 * `ARCHITECTURE` (Default: "arm64")
@@ -44,7 +44,7 @@ Puede elegir entra las variantes lite y slim con el sistema mínimo.
 Seleccionar arquitectura de la compilación entre arm64 y armhf.
 
 ```shell
-  sudo ARCHITECTURE="armhf" ./rpi-img-builder.sh
+sudo ARCHITECTURE="armhf" ./rpi-img-builder.sh
 ```
 ---
 * `FSTYPE` (Default: "ext4")
@@ -52,7 +52,7 @@ Seleccionar arquitectura de la compilación entre arm64 y armhf.
 Seleccionar el sistema de archivos de la partición /root entre ext4 y f2fs.
 
 ```shell
-  sudo FSTYPE="f2fs" ./rpi-img-builder.sh
+sudo FSTYPE="f2fs" ./rpi-img-builder.sh
 ```
 ---
 * `NETWORK` (Default: "dhcp")
@@ -81,9 +81,9 @@ WPA_COUNTRY="es" # Región para España
 Podremos generar una imagen comprimidas en formato gz o xz.
 
 ```shell
-  sudo COMPRESS="gzip" ./rpi-img-builder.sh
+sudo COMPRESS="gzip" ./rpi-img-builder.sh
 
-  sudo COMPRESS="xz" ./rpi-img-builder.sh
+sudo COMPRESS="xz" ./rpi-img-builder.sh
 ```  
 ---
 * `TIMEZONE` (Default: "Europe/Madrid" )
@@ -91,7 +91,7 @@ Podremos generar una imagen comprimidas en formato gz o xz.
 Establecera la zona horaria.
 
 ```shell
-  sudo TIMEZONE="Europe/London" ./rpi-img-builder.sh
+sudo TIMEZONE="Europe/London" ./rpi-img-builder.sh
 ```
 ---
 * `LOCALES` (Default: "es_ES.UTF-8" )
@@ -99,7 +99,7 @@ Establecera la zona horaria.
 Establecera locale del sistema.
 
 ```shell
-  sudo LOCALES="en_GB.UTF-8" ./rpi-img-builder.sh
+sudo LOCALES="en_GB.UTF-8" ./rpi-img-builder.sh
 ```
 ---
 * `ROOT_PASSWORD` (Default: "raspberry" )
@@ -107,7 +107,7 @@ Establecera locale del sistema.
 Establecer la contraseña a los usuarios root y pi.
 
 ```shell
-  sudo ROOT_PASSWORD="tupassword" ./rpi-img-builder.sh
+sudo ROOT_PASSWORD="tupassword" ./rpi-img-builder.sh
 ```
 ---
 * `HOST_NAME` (Default: "rpi" )
@@ -115,7 +115,7 @@ Establecer la contraseña a los usuarios root y pi.
 Definir el nombre del host manualmente.
 
 ```shell
-  sudo HOST_NAME="rpi4b" ./rpi-img-builder.sh
+sudo HOST_NAME="rpi4b" ./rpi-img-builder.sh
 ```
 ---
 * `ADDPKG` (Default: "none" )
@@ -123,7 +123,7 @@ Definir el nombre del host manualmente.
 Añadir paquetes a la compilación de la imagen.
 
 ```shell
-    sudo ADDPKG="nano,htop" ./rpi-img-builder.sh
+sudo ADDPKG="nano,htop" ./rpi-img-builder.sh
 ```
 ---
 * `BOOT_MB` (Default: "136" )
@@ -131,7 +131,7 @@ Añadir paquetes a la compilación de la imagen.
 Cambiar el tamaño de la partición BOOT.
 
 ```shell
-    sudo BOOT_MB="150" ./rpi-img-builder.sh
+sudo BOOT_MB="150" ./rpi-img-builder.sh
 ```
 ---
 * `PROXY_URL` (Default: "http://127.0.0.1:3142/" )
@@ -142,13 +142,13 @@ apt-cacher-ng.
 Si desea deshabilitar el uso de proxy ejecute:
 
 ```shell
-    sudo PROXY_URL="none" ./rpi-img-builder.sh
+sudo PROXY_URL="none" ./rpi-img-builder.sh
 ```
 
 Si desea utilizar un proxy externo ejecute:
 
 ```shell
-    sudo PROXY_URL="http://external.proxy.loc:3142" ./rpi-img-builder.sh
+sudo PROXY_URL="http://external.proxy.loc:3142" ./rpi-img-builder.sh
 ```
 
 ## Ejemplos de uso
@@ -166,7 +166,6 @@ Si desea construir una compilación personalizada:
 
 ```shell
 wget https://git.io/rpi-img-builder.sh
-
 
 echo ARCHITECTURE="arm64"     >> config.txt
 echo HOST_NAME="rpi3"         >> config.txt
