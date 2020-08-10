@@ -57,7 +57,7 @@ Seleccionar el sistema de archivos de la partición /root entre ext4 y f2fs.
 ---
 * `NETWORK` (Default: "dhcp")
 
-Podemos definir manualmente la configuracion de red.
+Podemos definir manualmente la configuración de red.
 
 ```shell
 echo IPV4="192.168.10.100"    >> config.txt
@@ -168,18 +168,18 @@ Si desea construir una compilación personalizada:
 wget https://git.io/rpi-img-builder.sh
 
 
-echo ARCHITECTURE="arm64" > config.txt
-echo HOST_NAME="rpi3" >> config.txt
-echo COMPRESS="gzip" >> config.txt
+echo ARCHITECTURE="arm64"     >> config.txt
+echo HOST_NAME="rpi3"         >> config.txt
+echo COMPRESS="gzip"          >> config.txt
 echo ROOT_PASSWORD="password" >> config.txt
-echo ADDPKG="nano,htop" >> config.txt
-echo BOOT_MB="150" >> config.txt
-echo IPV4="192.168.10.100" >> config.txt
-echo NETMASK="255.255.255.0" >> config.txt
-echo ROUTER="192.168.10.1" >> config.txt
-echo DNS="8.8.8.8.8" >> config.txt
+echo ADDPKG="nano,htop"       >> config.txt
+echo BOOT_MB="150"            >> config.txt
+echo IPV4="192.168.10.100"    >> config.txt
+echo NETMASK="255.255.255.0"  >> config.txt
+echo ROUTER="192.168.10.1"    >> config.txt
+echo DNS="8.8.8.8.8"          >> config.txt
 echo TIMEZONE="Europe/Madrid" >> config.txt
-echo LOCALES="es_ES.UTF-8" >> config.txt
+echo LOCALES="es_ES.UTF-8"    >> config.txt
 
 chmod +x rpi-img-builder.sh
 
