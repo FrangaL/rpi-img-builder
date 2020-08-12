@@ -13,6 +13,7 @@ El script instalara automáticamente todas las dependencias necesarias.
 Las dependencias necesarias son:
 
 qemu-user-static debian-archive-keyring binfmt-support dosfstools rsync wget lsof
+
 git parted systemd-container debootstrap eatmydata xz-utils gnupg kmod udev
 
 ## Configuración
@@ -123,7 +124,7 @@ sudo HOST_NAME="rpi4b" ./rpi-img-builder.sh
 Añadir paquetes a la compilación de la imagen.
 
 ```shell
-sudo ADDPKG="nano,htop" ./rpi-img-builder.sh
+sudo ADDPKG="nano htop" ./rpi-img-builder.sh
 ```
 ---
 * `BOOT_MB` (Default: "136" )
@@ -171,7 +172,7 @@ echo ARCHITECTURE="arm64"     >> config.txt
 echo HOST_NAME="rpi3"         >> config.txt
 echo COMPRESS="gzip"          >> config.txt
 echo ROOT_PASSWORD="password" >> config.txt
-echo ADDPKG="nano,htop"       >> config.txt
+echo ADDPKG="nano htop"       >> config.txt
 echo BOOT_MB="150"            >> config.txt
 echo IPV4="192.168.10.100"    >> config.txt
 echo NETMASK="255.255.255.0"  >> config.txt
