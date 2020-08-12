@@ -128,7 +128,7 @@ systemd-nspawn_exec(){
 
 # Base debootstrap
 COMPONENTS="main contrib non-free"
-MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron eatmydata wget libterm-readline-gnu-perl"
+MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron eatmydata wget"
 EXTRAPKGS="openssh-server dialog parted dhcpcd5 sudo gnupg gnupg2 locales"
 FIRMWARES="firmware-brcm80211 firmware-misc-nonfree firmware-atheros firmware-realtek"
 WIRELESSPKGS="wireless-tools wpasupplicant crda wireless-tools rfkill"
@@ -359,31 +359,32 @@ fi
 # Instalar paquetes extra
 systemd-nspawn_exec eatmydata apt-get $APTOPTS $INCLUDEPKGS
 
-# Tunning config
+# Activar servicios generate-ssh-host-keys y rpi-resizerootfs
 echo | sed -e '/^#/d ; /^ *$/d' | systemd-nspawn_exec << \EOF
-# Añadir nombre de host
-echo $HOST_NAME >/etc/hostname
 # Activar servicio redimendionado partición root
 chmod 755 /usr/sbin/rpi-resizerootfs
 systemctl enable rpi-resizerootfs.service
 # Activar servicio generación ket SSH
 systemctl enable generate-ssh-host-keys.service
-# Definir zona horaria
-ln -nfs /usr/share/zoneinfo/$TIMEZONE /etc/localtime
-dpkg-reconfigure -fnoninteractive tzdata
-echo "pi ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 EOF
 
+# Añadir nombre de host
+echo $HOST_NAME > $R/etc/hostname
+
+# Definir zona horaria
+systemd-nspawn_exec ln -nfs /usr/share/zoneinfo/$TIMEZONE /etc/localtime
+systemd-nspawn_exec dpkg-reconfigure -fnoninteractive tzdata
+
+# No password pi sudo
+echo "pi ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
 # Configurar locale
-echo | sed -e '/^#/d ; /^ *$/d' | systemd-nspawn_exec << \EOF
-# Añadir configuración locale
-sed -i 's/^# *\($LOCALES\)/\1/' /etc/locale.gen
-echo "LANG=${LOCALES}" >/etc/default/locale
-echo "LANGUAGE=${LOCALES}" >>/etc/default/locale
-echo "LC_COLLATE=${LOCALES}" >>/etc/default/locale
-echo "LC_ALL=${LOCALES}" >>/etc/default/locale
-locale-gen
-EOF
+sed -i 's/^# *\($LOCALES\)/\1/' $R/etc/locale.gen
+echo "LANG=${LOCALES}" > $R/etc/default/locale
+echo "LANGUAGE=${LOCALES}" >> $R/etc/default/locale
+echo "LC_COLLATE=${LOCALES}" >> $R/etc/default/locale
+echo "LC_ALL=${LOCALES}" >> $R/etc/default/locale
+systemd-nspawn_exec locale-gen
 
 # Configuración SWAP
 echo 'vm.swappiness = 50' >> $R/etc/sysctl.conf
