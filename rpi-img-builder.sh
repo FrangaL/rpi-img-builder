@@ -128,7 +128,7 @@ systemd-nspawn_exec(){
 
 # Base debootstrap
 COMPONENTS="main contrib non-free"
-MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron eatmydata wget"
+MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron eatmydata wget libterm-readline-gnu-perl"
 EXTRAPKGS="openssh-server dialog parted dhcpcd5 sudo gnupg gnupg2 locales"
 FIRMWARES="firmware-brcm80211 firmware-misc-nonfree firmware-atheros firmware-realtek"
 WIRELESSPKGS="wireless-tools wpasupplicant crda wireless-tools rfkill"
@@ -338,7 +338,6 @@ systemd-nspawn_exec << _EOF
 echo "root:${ROOT_PASSWORD}" | chpasswd
 adduser --gecos pi --disabled-password pi
 adduser pi sudo
-echo "pi ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 echo "pi:${ROOT_PASSWORD}" | chpasswd
 echo spi i2c gpio | xargs -n 1 groupadd -r
 usermod -a -G adm,dialout,sudo,audio,video,plugdev,users,netdev,input,spi,gpio,i2c pi
@@ -374,6 +373,7 @@ systemctl enable generate-ssh-host-keys.service
 # Definir zona horaria
 ln -nfs /usr/share/zoneinfo/$TIMEZONE /etc/localtime
 dpkg-reconfigure -fnoninteractive tzdata
+echo "pi ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 EOF
 
 # Configurar locale
@@ -395,17 +395,11 @@ sed -i 's/#CONF_SWAPSIZE=/CONF_SWAPSIZE=128/g' $R/etc/dphys-swapfile
 # Configuración firmware
 if [ $OS = raspios ]; then
 cat <<EOM >${R}${BOOT}/cmdline.txt
-net.ifnames=0 dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootfstype=$FSTYPE rootwait
+net.ifnames=0 dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootwait
 EOM
 cat <<EOF >>$R/${BOOT}/config.txt
-[pi2]
-kernel=$KERNEL_PI
-[pi3]
-kernel=$KERNEL_PI
-[pi4]
-kernel=$KERNEL_PI
-[all]
-disable_splash=1
+arm_64bit=1
+hdmi_force_hotplug=1
 EOF
 fi
 
