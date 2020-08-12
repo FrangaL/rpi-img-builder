@@ -153,7 +153,6 @@ elif [[ "${OS}" == "raspios" ]]; then
     case ${OS}+${ARCHITECTURE} in
       raspios*arm64)
       MIRROR=$PI_MIRROR
-      KERNEL_PI=kernel8.img
       MIRROR_PIOS=$(echo ${MIRROR/raspbian./archive.}|sed 's/raspbian/debian/g')
       KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
       KEYRING_FILE=raspberrypi-archive-keyring_2016.10.31_all.deb
@@ -161,7 +160,6 @@ elif [[ "${OS}" == "raspios" ]]; then
       BOOTSTRAP_URL=$DEB_MIRROR;;
       raspios*armhf)
       MIRROR=$RASP_MIRROR
-      KERNEL_PI=kernel7l.img
       KEYRING_FILE=raspbian-archive-keyring_20120528.2_all.deb
       KEYRING_PKG=${RASP_MIRROR}/pool/main/r/raspbian-archive-keyring/$KEYRING_FILE
       KEYRING=/usr/share/keyrings/raspbian-archive-keyring.gpg
