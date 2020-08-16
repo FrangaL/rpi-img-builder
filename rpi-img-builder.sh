@@ -10,7 +10,6 @@ DISCLAIMER
 
 # Descomentar para activar debug
 # debug=true
-
 if [ "$debug" = true ]; then
   exec > >(tee -a -i "${0%.*}.log") 2>&1
   set -x
@@ -39,38 +38,38 @@ RASP_MIRROR="http://archive.raspbian.org/raspbian/"
 
 # Entorno de trabajo
 CURRENT_DIR="$(pwd)"
-BASEDIR="${CURRENT_DIR}/${OS}_${RELEASE}"
+BASEDIR="${CURRENT_DIR}/${OS}_${RELEASE}_${VARIANT}_${ARCHITECTURE}"
 R="${BASEDIR}/build"
 
 # Detectar privilegios
 if [[ $EUID -ne 0 ]]; then
-    echo "Usar: sudo $0" 1>&2
-    exit 1
+  echo "Usar: sudo $0" 1>&2
+  exit 1
 fi
 
 # Detecta antigua instalación
 if [ -e "$BASEDIR" ]; then
-    echo "El directorio $BASEDIR existe, no se continuara"
-    exit 1
+  echo "El directorio $BASEDIR existe, no se continuara"
+  exit 1
 elif [[ $BASEDIR =~ [[:space:]] ]]; then
-    echo "El directorio "\"$BASEDIR"\" contiene espacios en blanco. No soportado."
-    exit 1
+  echo "El directorio "\"$BASEDIR"\" contiene espacios en blanco. No soportado."
+  exit 1
 else
-    mkdir -p $R
+  mkdir -p $R
 fi
 
 # Cargar configuración de la compilacióm
 if [ -f ./config.txt ]; then
-    source ./config.txt
-    IMGNAME=${OS}-${RELEASE}-${VARIANT}-${ARCHITECTURE}
+  source ./config.txt
+  IMGNAME=${OS}-${RELEASE}-${VARIANT}-${ARCHITECTURE}
 fi
 
 # Configuración de red
 if [[ ! $IPV4  || ! $NETMASK || ! $ROUTER || ! $DNS ]]; then
-    NETWORK=dhcp
-    DNS=${DNS:-8.8.8.8}
+  NETWORK=dhcp
+  DNS=${DNS:-8.8.8.8}
 else
-    NETWORK=static
+  NETWORK=static
 fi
 
 # Función para instalar dependencias del script
@@ -94,22 +93,22 @@ apt-get install -y gnupg
 # Checkear versión mínima debootstrap
 DEBOOTSTRAP_VER=$(debootstrap --version |  grep -o '[0-9.]\+' | head -1)
 if dpkg --compare-versions "$DEBOOTSTRAP_VER" lt "1.0.105"; then
-    echo "Actualmente su versión de debootstrap no soporta el script" >&2
-    echo "Actualice debootstrap, versión mínima 1.0.105" >&2
-    exit 1
+  echo "Actualmente su versión de debootstrap no soporta el script" >&2
+  echo "Actualice debootstrap, versión mínima 1.0.105" >&2
+  exit 1
 fi
 
 # Detectar arquitectura
 if [[ "${ARCHITECTURE}" == "arm64" ]]; then
-        QEMUARCH=qemu-aarch64
-        QEMUBIN="/usr/bin/qemu-aarch64-static"
-        LIB_ARCH="aarch64-linux-gnu"
-        CMAKE_ARM="-DARM64=ON"
+  QEMUARCH=qemu-aarch64
+  QEMUBIN="/usr/bin/qemu-aarch64-static"
+  LIB_ARCH="aarch64-linux-gnu"
+  CMAKE_ARM="-DARM64=ON"
 elif [[ "${ARCHITECTURE}" == "armhf" ]]; then
-        QEMUARCH=qemu-arm
-        QEMUBIN="/usr/bin/qemu-arm-static"
-        LIB_ARCH="arm-linux-gnueabihf"
-        CMAKE_ARM="-DARM64=OFF"
+  QEMUARCH=qemu-arm
+  QEMUBIN="/usr/bin/qemu-arm-static"
+  LIB_ARCH="arm-linux-gnueabihf"
+  CMAKE_ARM="-DARM64=OFF"
 fi
 
 # Detectar modulo binfmt_misc cargado en el kernel
@@ -128,43 +127,43 @@ systemd-nspawn_exec(){
 
 # Base debootstrap
 COMPONENTS="main contrib non-free"
-MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron eatmydata wget"
-EXTRAPKGS="openssh-server dialog parted dhcpcd5 sudo gnupg gnupg2 locales"
-FIRMWARES="firmware-brcm80211 firmware-misc-nonfree firmware-atheros firmware-realtek"
-WIRELESSPKGS="wireless-tools wpasupplicant crda wireless-tools rfkill"
+MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron eatmydata wget dosfstools"
+EXTRAPKGS="openssh-server dialog parted sudo gnupg gnupg2 locales"
+FIRMWARES="firmware-misc-nonfree firmware-atheros firmware-realtek firmware-brcm80211"
+WIRELESSPKGS="wireless-tools wpasupplicant crda wireless-tools rfkill wireless-regdb"
 BLUETOOTH="bluetooth bluez bluez-tools"
 DESKTOP=""
 
 if [[ "${OS}" == "debian" ]]; then
-    BOOT="/boot/firmware"
-    MIRROR=$DEB_MIRROR
-    BOOTSTRAP_URL=$MIRROR
-    KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
-    KEYRING_FILE=debian-archive-keyring_2019.1_all.deb
-    KEYRING_PKG=${DEB_MIRROR}/pool/main/d/debian-archive-keyring/${KEYRING_FILE}
-    # Seleccionar kernel y bootloader
-    case ${OS}+${ARCHITECTURE} in
-      debian*arm64) KERNEL_IMAGE="linux-image-arm64 raspi3-firmware";;
-      debian*armhf) KERNEL_IMAGE="linux-image-armmp raspi3-firmware";;
-    esac
+  BOOT="/boot/firmware"
+  MIRROR=$DEB_MIRROR
+  BOOTSTRAP_URL=$MIRROR
+  KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
+  KEYRING_FILE=debian-archive-keyring_2019.1_all.deb
+  KEYRING_PKG=${DEB_MIRROR}/pool/main/d/debian-archive-keyring/${KEYRING_FILE}
+  # Seleccionar kernel y bootloader
+  case ${OS}+${ARCHITECTURE} in
+    debian*arm64) KERNEL_IMAGE="linux-image-arm64 raspi3-firmware";;
+    debian*armhf) KERNEL_IMAGE="linux-image-armmp raspi3-firmware";;
+  esac
 elif [[ "${OS}" == "raspios" ]]; then
-    BOOT="/boot"
-    KERNEL_IMAGE="raspberrypi-kernel raspberrypi-bootloader"
-    case ${OS}+${ARCHITECTURE} in
-      raspios*arm64)
-      MIRROR=$PI_MIRROR
-      MIRROR_PIOS=$(echo ${MIRROR/raspbian./archive.}|sed 's/raspbian/debian/g')
-      KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
-      KEYRING_FILE=raspberrypi-archive-keyring_2016.10.31_all.deb
-      KEYRING_PKG=$MIRROR_PIOS/pool/main/r/raspberrypi-archive-keyring/$KEYRING_FILE
-      BOOTSTRAP_URL=$DEB_MIRROR;;
-      raspios*armhf)
-      MIRROR=$RASP_MIRROR
-      KEYRING_FILE=raspbian-archive-keyring_20120528.2_all.deb
-      KEYRING_PKG=${RASP_MIRROR}/pool/main/r/raspbian-archive-keyring/$KEYRING_FILE
-      KEYRING=/usr/share/keyrings/raspbian-archive-keyring.gpg
-      BOOTSTRAP_URL=$RASP_MIRROR;;
-    esac
+  BOOT="/boot"
+  KERNEL_IMAGE="raspberrypi-kernel raspberrypi-bootloader"
+  case ${OS}+${ARCHITECTURE} in
+    raspios*arm64)
+    MIRROR=$PI_MIRROR
+    MIRROR_PIOS=$(echo ${MIRROR/raspbian./archive.}|sed 's/raspbian/debian/g')
+    KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
+    KEYRING_FILE=raspberrypi-archive-keyring_2016.10.31_all.deb
+    KEYRING_PKG=$MIRROR_PIOS/pool/main/r/raspberrypi-archive-keyring/$KEYRING_FILE
+    BOOTSTRAP_URL=$DEB_MIRROR;;
+    raspios*armhf)
+    MIRROR=$RASP_MIRROR
+    KEYRING_FILE=raspbian-archive-keyring_20120528.2_all.deb
+    KEYRING_PKG=${RASP_MIRROR}/pool/main/r/raspbian-archive-keyring/$KEYRING_FILE
+    KEYRING=/usr/share/keyrings/raspbian-archive-keyring.gpg
+    BOOTSTRAP_URL=$RASP_MIRROR;;
+  esac
 fi
 
 # Instalar certificados
@@ -290,8 +289,6 @@ ConditionPathExistsGlob=!/etc/ssh/ssh_host_*_key
 
 [Service]
 Type=oneshot
-PartOf=ssh.service ssh.socket
-Before=ssh.service ssh.socket
 ExecStart=/usr/sbin/dpkg-reconfigure -fnoninteractive openssh-server
 
 [Install]
@@ -346,7 +343,7 @@ systemd-nspawn_exec eatmydata apt-get update
 systemd-nspawn_exec eatmydata apt-get $APTOPTS ${KERNEL_IMAGE}
 
 if [[ "${VARIANT}" == "slim" ]]; then
-  INCLUDEPKGS="${EXTRAPKGS} ${FIRMWARES} ${WIRELESSPKGS}"
+  INCLUDEPKGS="${EXTRAPKGS} firmware-brcm80211 ${WIRELESSPKGS}"
 elif [[ "${VARIANT}" == "lite" ]]; then
   INCLUDEPKGS="${EXTRAPKGS} ${FIRMWARES} ${WIRELESSPKGS} ${BLUETOOTH}"
 elif [[ "${VARIANT}" == "desktop" ]]; then
@@ -378,12 +375,8 @@ systemd-nspawn_exec dpkg-reconfigure -fnoninteractive tzdata
 # No password pi sudo
 echo "pi ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-# Configurar locale
+# Configurar locales
 sed -i 's/^# *\($LOCALES\)/\1/' $R/etc/locale.gen
-echo "LANG=${LOCALES}" > $R/etc/default/locale
-echo "LANGUAGE=${LOCALES}" >> $R/etc/default/locale
-echo "LC_COLLATE=${LOCALES}" >> $R/etc/default/locale
-echo "LC_ALL=${LOCALES}" >> $R/etc/default/locale
 systemd-nspawn_exec locale-gen
 
 # Configuración SWAP
@@ -519,7 +512,7 @@ SUBSYSTEM=="gpio*", PROGRAM="/bin/sh -c '\
 '"
 EOF
 elif [[ $OS = "raspios" && ${VARIANT} = "lite" ]]; then
-systemd-nspawn_exec apt-get install -y libraspberrypi-bin
+  systemd-nspawn_exec apt-get install -y libraspberrypi-bin
 fi
 
 # Limpiar sistema
