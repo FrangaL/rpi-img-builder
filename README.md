@@ -186,6 +186,22 @@ chmod +x rpi-img-builder.sh
 sudo ./rpi-img-builder.sh
 ```
 
+## Contenedor de Docker para crear imágenes
+
+```bash
+git clone https://github.com/FrangaL/images-builder.git
+
+cd images-builder
+
+docker-compose --compatibility up -d --build
+
+docker exec -it rpi-images git pull
+
+docker exec -it rpi-images bash -c "COMPRESS=xz ./rpi-img-builder.sh"
+
+docker cp rpi-images:/images/debian-buster-lite-arm64.img.xz .
+```
+
 ## Instalar la imagen en la Raspberry Pi
 
 Conecte una tarjeta SD que le gustaría sobrescribir por completo en su lector de tarjetas SD.
