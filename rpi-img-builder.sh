@@ -127,8 +127,8 @@ systemd-nspawn_exec(){
 
 # Base debootstrap
 COMPONENTS="main contrib non-free"
-MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron eatmydata wget dosfstools"
-EXTRAPKGS="openssh-server dialog parted sudo gnupg gnupg2 locales"
+MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron eatmydata wget dosfstools libterm-readline-gnu-perl"
+EXTRAPKGS="openssh-server parted sudo gnupg gnupg2 locales"
 FIRMWARES="firmware-misc-nonfree firmware-atheros firmware-realtek firmware-brcm80211"
 WIRELESSPKGS="wireless-tools wpasupplicant crda wireless-tools rfkill wireless-regdb"
 BLUETOOTH="bluetooth bluez bluez-tools"
@@ -239,46 +239,40 @@ fi
 systemd-nspawn_exec eatmydata /debootstrap/debootstrap --second-stage
 
 # Definir sources.list
-if [[ "${OS}" == "debian" ]]; then
-cat <<EOM >$R/etc/apt/sources.list
-deb ${MIRROR} ${RELEASE} ${COMPONENTS}
-#deb-src ${MIRROR} ${RELEASE} ${COMPONENTS}
-
-deb ${MIRROR}-security/ ${RELEASE}/updates ${COMPONENTS}
-#deb-src ${MIRROR}-security/ ${RELEASE}/updates ${COMPONENTS}
-
-deb ${MIRROR} ${RELEASE}-updates ${COMPONENTS}
-#deb-src ${MIRROR} ${RELEASE}-updates ${COMPONENTS}
-EOM
-elif [[ "${OS}" == "raspios" ]]; then
-systemd-nspawn_exec << _EOF
-wget $KEYRING_PKG -O /root/archive-keyring.deb
-dpkg -i /root/archive-keyring.deb
-rm -rf /root/archive-keyring.deb
-_EOF
-if [[ "${ARCHITECTURE}" == "arm64" ]]; then
-cat <<EOM >$R/etc/apt/sources.list
-deb ${DEB_MIRROR} ${RELEASE} ${COMPONENTS}
-#deb-src ${DEB_MIRROR} ${RELEASE} ${COMPONENTS}
-EOM
-cat <<EOM >$R/etc/apt/sources.list.d/raspi.list
-deb $MIRROR_PIOS $RELEASE main
-#deb-src $MIRROR_PIOS $RELEASE main
-EOM
-elif [[ "${ARCHITECTURE}" == "armhf" ]]; then
-cat <<EOM >$R/etc/apt/sources.list
-deb ${MIRROR} ${RELEASE} ${COMPONENTS}
-#deb-src ${MIRROR} ${RELEASE} ${COMPONENTS}
-EOM
-MIRROR=$(echo ${PI_MIRROR/raspbian./archive.} | sed 's/raspbian/debian/g')
-systemd-nspawn_exec wget -qO /root/raspberrypi.gpg.key $MIRROR/raspberrypi.gpg.key
-systemd-nspawn_exec apt-key add /root/raspberrypi.gpg.key
-rm -rf $R/root/raspberrypi.gpg.key
-cat <<EOM >$R/etc/apt/sources.list.d/raspi.list
-deb $MIRROR $RELEASE main
-#deb-src $MIRROR $RELEASE main
-EOM
+if [ "$OS" = "debian" ]; then
+  echo -e "\
+  deb $MIRROR $RELEASE $COMPONENTS\n\
+  #deb-src $MIRROR $RELEASE $COMPONENTS\n\
+  deb $MIRROR-security/ $RELEASE/updates $COMPONENTS\n\
+  #deb-src $MIRROR-security/ $RELEASE/updates $COMPONENTS\n\
+  deb $MIRROR $RELEASE-updates $COMPONENTS\n\
+  #deb-src $MIRROR $RELEASE-updates $COMPONENTS\n\
+  " > $R/etc/apt/sources.list
+elif [ "$OS" = "raspios" ]; then
+  if [ "$ARCHITECTURE" = "arm64" ]; then
+    echo "deb $DEB_MIRROR $RELEASE $COMPONENTS" >$R/etc/apt/sources.list
+    echo "#deb-src $DEB_MIRROR $RELEASE $COMPONENTS" >>$R/etc/apt/sources.list
+    echo "deb $MIRROR_PIOS $RELEASE main" >$R/etc/apt/sources.list.d/raspi.list
+    echo "#deb-src $MIRROR_PIOS $RELEASE main" >>$R/etc/apt/sources.list.d/raspi.list
+  elif [ "$ARCHITECTURE" = "armhf" ]; then
+    echo "deb $MIRROR $RELEASE $COMPONENTS" >$R/etc/apt/sources.list
+    echo "#deb-src $MIRROR $RELEASE $COMPONENTS" >>$R/etc/apt/sources.list
+    MIRROR=$(echo ${PI_MIRROR/raspbian./archive.} | sed 's/raspbian/debian/g')
+    echo "deb $MIRROR $RELEASE main" >$R/etc/apt/sources.list.d/raspi.list
+    echo "#deb-src $MIRROR $RELEASE main" >>$R/etc/apt/sources.list.d/raspi.list
+  fi
 fi
+
+# Instalar archive-keyring en PiOS
+if [ "$OS" = "raspios" ]; then
+  wget $KEYRING_PKG -qO $R/root/archive-keyring.deb
+  systemd-nspawn_exec dpkg -i /root/archive-keyring.deb
+  rm -rf $R/root/archive-keyring.deb
+  if [ "$ARCHITECTURE" = "armhf" ]; then
+    wget -qO $R/root/raspberrypi.gpg.key $MIRROR/raspberrypi.gpg.key
+    systemd-nspawn_exec apt-key add /root/raspberrypi.gpg.key
+    rm -rf $R/root/raspberrypi.gpg.key
+  fi
 fi
 
 # Script para generar las key de OpenSSH server
@@ -372,14 +366,14 @@ echo $HOST_NAME > $R/etc/hostname
 systemd-nspawn_exec ln -nfs /usr/share/zoneinfo/$TIMEZONE /etc/localtime
 systemd-nspawn_exec dpkg-reconfigure -fnoninteractive tzdata
 
-# No password pi sudo
-echo "pi ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+# Sin contraseña sudo en el usuario pi
+echo "pi ALL=(ALL) NOPASSWD:ALL" >> $R/etc/sudoers
 
 # Configurar locales
 sed -i 's/^# *\($LOCALES\)/\1/' $R/etc/locale.gen
 systemd-nspawn_exec locale-gen
 
-# Configuración SWAP
+# Habilitar SWAP
 echo 'vm.swappiness = 50' >> $R/etc/sysctl.conf
 systemd-nspawn_exec apt-get install -y dphys-swapfile
 sed -i 's/#CONF_SWAPSIZE=/CONF_SWAPSIZE=128/g' $R/etc/dphys-swapfile
@@ -528,7 +522,7 @@ rm -f $R/bkp-packages
 rm -rf $R/userland
 rm -rf $R/opt/vc/src
 if [[ "${VARIANT}" == "slim" ]]; then
-  SLIM_PKGS="nano wget tasksel eatmydata libeatmydata1 dialog"
+  SLIM_PKGS="wget tasksel eatmydata libeatmydata1"
   systemd-nspawn_exec apt-get -y remove --purge $SLIM_PKGS
   find $R/usr/share/doc -depth -type f ! -name copyright -print0 | xargs -0 rm
   find $R/usr/share/doc -empty -print0 | xargs -0 rmdir
