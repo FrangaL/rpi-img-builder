@@ -406,7 +406,7 @@ proc            /proc           proc    defaults          0       0
 /dev/mmcblk0p1  $BOOT  vfat    defaults          0       2
 EOM
 
-# Preparar hostname y hosts
+# Crear archivo hosts
 cat <<EOM >$R/etc/hosts
 127.0.0.1       localhost
 ::1             localhostnet.ifnames=0 ip6-localhost ip6-loopback
@@ -417,8 +417,6 @@ ff02::2         ip6-allrouters
 EOM
 
 # Preparar configuración de red
-echo "nameserver $DNS" >$R/etc/resolv.conf
-
 cat <<EOF >$R/etc/network/interfaces
 source-directory /etc/network/interfaces.d
 
@@ -531,6 +529,7 @@ if [[ "${VARIANT}" == "slim" ]]; then
   rm -rf $R/etc/apt/apt.conf.d/99_norecommends
   rm -rf $R/etc/dpkg/dpkg.cfg.d/01_no_doc_locale
 fi
+echo "nameserver $DNS" >$R/etc/resolv.conf
 rm -rf $R/run/* $R/etc/*- $R/tmp/*
 rm -rf $R/var/lib/apt/lists/*
 rm -rf $R/var/cache/apt/archives/*
