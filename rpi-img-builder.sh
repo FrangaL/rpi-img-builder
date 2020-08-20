@@ -372,6 +372,13 @@ echo "pi ALL=(ALL) NOPASSWD:ALL" >> $R/etc/sudoers
 # Configurar locales
 sed -i 's/^# *\($LOCALES\)/\1/' $R/etc/locale.gen
 systemd-nspawn_exec locale-gen
+echo "LANG=$LOCALES" >$R/etc/locale.conf
+cat <<'EOM' >$R/etc/profile.d/default-lang.sh
+if [ -z "$LANG" ]; then
+    source /etc/locale.conf
+    export LANG
+fi
+EOM
 
 # Habilitar SWAP
 echo 'vm.swappiness = 50' >> $R/etc/sysctl.conf
