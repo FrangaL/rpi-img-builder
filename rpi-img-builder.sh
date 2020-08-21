@@ -98,18 +98,19 @@ if dpkg --compare-versions "$DEBOOTSTRAP_VER" lt "1.0.105"; then
   exit 1
 fi
 
-# Detectar arquitectura
-if [[ "${ARCHITECTURE}" == "arm64" ]]; then
-  QEMUARCH=qemu-aarch64
-  QEMUBIN="/usr/bin/qemu-aarch64-static"
-  LIB_ARCH="aarch64-linux-gnu"
-  CMAKE_ARM="-DARM64=ON"
-elif [[ "${ARCHITECTURE}" == "armhf" ]]; then
-  QEMUARCH=qemu-arm
-  QEMUBIN="/usr/bin/qemu-arm-static"
-  LIB_ARCH="arm-linux-gnueabihf"
-  CMAKE_ARM="-DARM64=OFF"
-fi
+# Variables según arquitectura
+case ${ARCHITECTURE} in
+  arm64)
+    QEMUARCH="qemu-aarch64"
+    QEMUBIN="/usr/bin/qemu-aarch64-static"
+    LIB_ARCH="aarch64-linux-gnu"
+    CMAKE_ARM="-DARM64=ON" ;;
+  armhf)
+    QEMUARCH="qemu-arm"
+    QEMUBIN="/usr/bin/qemu-arm-static"
+    LIB_ARCH="arm-linux-gnueabihf"
+    CMAKE_ARM="-DARM64=OFF" ;;
+esac
 
 # Detectar modulo binfmt_misc cargado en el kernel
 MODBINFMT=$(lsmod | grep binfmt_misc | awk '{print $1}')
