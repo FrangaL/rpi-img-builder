@@ -77,9 +77,9 @@ apt-get update
 APTOPTS="-q -y install --no-install-recommends -o APT::Install-Suggests=0 -o dpkg::options::=--force-confnew -o Acquire::Retries=3"
 installdeps(){
 for PKG in $DEPS; do
-  if [ $(dpkg-query -W -f='${Status}' ${PKG} 2>&1 | grep -c "ok installed") -eq 0 ];
+  if [[ $(dpkg -l $PKG | awk '/^ii/ { print $1 }') != ii ]];
   then
-    apt-get $APTOPTS ${PKG};
+    apt-get $APTOPTS $PKG;
   fi
 done
 }
