@@ -114,7 +114,7 @@ esac
 
 # Detectar modulo binfmt_misc cargado en el kernel
 MODBINFMT=$(lsmod | grep binfmt_misc | awk '{print $1}')
-BINFMTS=$(update-binfmts --display ${QEMUARCH}|awk '{if(NR==1) print $2}'|sed 's/.//;s/..$//')
+BINFMTS=$(cat /proc/sys/fs/binfmt_misc/${QEMUARCH} | awk '{if(NR==1) print $1}')
 if [ -z "${MODBINFMT}" ]; then
   modprobe binfmt_misc &>/dev/null
 elif [ "${BINFMTS}" == "disabled" ]; then
