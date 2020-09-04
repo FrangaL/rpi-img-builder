@@ -128,12 +128,12 @@ systemd-nspawn_exec(){
 
 # Base debootstrap
 COMPONENTS="main contrib non-free"
-MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron eatmydata wget dosfstools libterm-readline-gnu-perl"
-EXTRAPKGS="openssh-server parted sudo gnupg gnupg2 locales"
+MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron eatmydata wget libterm-readline-gnu-perl"
+EXTRAPKGS="openssh-server parted sudo gnupg gnupg2 locales dosfstools"
 FIRMWARES="firmware-misc-nonfree firmware-atheros firmware-realtek firmware-brcm80211"
-WIRELESSPKGS="wireless-tools wpasupplicant crda wireless-tools rfkill wireless-regdb"
+WIRELESSPKGS="wpasupplicant crda wireless-tools rfkill wireless-regdb"
 BLUETOOTH="bluetooth bluez bluez-tools"
-DESKTOP=""
+DESKTOP="desktop-base lightdm xserver-xorg"
 
 if [[ "${OS}" == "debian" ]]; then
   BOOT="/boot/firmware"
@@ -219,10 +219,12 @@ EOF
 chmod 755 $R/usr/bin/dpkg
 
 if [[ "${VARIANT}" == "slim" ]]; then
-echo 'APT::Install-Recommends "false";'              > $R/etc/apt/apt.conf.d/99_norecommends
-echo 'APT::AutoRemove::RecommendsImportant "false";' >> $R/etc/apt/apt.conf.d/99_norecommends
-echo 'APT::AutoRemove::SuggestsImportant "false";'   >> $R/etc/apt/apt.conf.d/99_norecommends
-cat > $R/etc/dpkg/dpkg.cfg.d/01_no_doc_locale <<EOF
+  cat > $R/etc/apt/apt.conf.d/99_norecommends <<EOF
+APT::Install-Recommends "false";
+APT::AutoRemove::RecommendsImportant "false";
+APT::AutoRemove::SuggestsImportant "false";
+EOF
+  cat > $R/etc/dpkg/dpkg.cfg.d/01_no_doc_locale <<EOF
 path-exclude /usr/share/doc/*
 path-include /usr/share/doc/*/copyright
 path-exclude /usr/share/man/*
