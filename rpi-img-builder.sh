@@ -29,7 +29,7 @@ IMGNAME=${OS}-${RELEASE}-${VARIANT}-${ARCHITECTURE}
 FSTYPE=${FSTYPE:-"ext4"}
 BOOT_MB="${BOOT_MB:-"136"}"
 FREE_SPACE="${FREE_SPACE:-"180"}"
-MACHINE=$(tr -cd 'A-Za-z0-9' < /dev/urandom | head -c16 ; echo)
+MACHINE=$(dbus-uuidgen)
 
 # Mirrors de descarga
 DEB_MIRROR="http://deb.debian.org/debian"
@@ -123,7 +123,7 @@ fi
 
 # Entorno systemd-nspawn
 systemd-nspawn_exec(){
-  LANG=C systemd-nspawn -q --bind ${QEMUBIN} --capability=cap_setfcap -M ${MACHINE} -D ${R} "$@"
+  LANG=C systemd-nspawn -q --bind ${QEMUBIN} --setenv=RUNLEVEL=1 -M ${MACHINE} -D ${R} "$@"
 }
 
 # Base debootstrap
