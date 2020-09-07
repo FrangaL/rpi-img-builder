@@ -122,14 +122,14 @@ fi
 
 # Entorno systemd-nspawn
 systemd-nspawn_exec(){
-  LANG=C systemd-nspawn -q --bind ${QEMUBIN} --capability=cap_setfcap --setenv=RUNLEVEL=1 -M ${MACHINE} -D ${R} "$@"
+  LANG=C systemd-nspawn -q --bind ${QEMUBIN} --capability=cap_setfcap -E RUNLEVEL=1 -M ${MACHINE} -D ${R} "$@"
 }
 
 # Base debootstrap
 COMPONENTS="main contrib non-free"
 MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron eatmydata wget libterm-readline-gnu-perl"
 EXTRAPKGS="openssh-server parted sudo gnupg gnupg2 locales dosfstools"
-FIRMWARES="firmware-{misc-nonfree,atheros,realtek,brcm80211,libertas}"
+FIRMWARES="firmware-misc-nonfree firmware-atheros firmware-realtek firmware-brcm80211 firmware-libertas"
 WIRELESSPKGS="wpasupplicant crda wireless-tools rfkill wireless-regdb"
 BLUETOOTH="bluetooth bluez bluez-tools"
 DESKTOP="desktop-base lightdm xserver-xorg"
