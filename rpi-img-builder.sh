@@ -85,10 +85,9 @@ done
 }
 
 # Instalar dependencias necesarias
-DEPS="binfmt-support dosfstools qemu-user-static rsync wget lsof git parted \
-systemd-container debootstrap eatmydata xz-utils kmod udev"
+DEPS="binfmt-support dosfstools qemu-user-static rsync wget lsof git parted dirmngr \
+systemd-container debootstrap eatmydata xz-utils kmod udev dbus gnupg gnupg-utils"
 installdeps
-apt-get install -y gnupg
 
 # Checkear versión mínima debootstrap
 DEBOOTSTRAP_VER=$(debootstrap --version |  grep -o '[0-9.]\+' | head -1)
@@ -123,14 +122,14 @@ fi
 
 # Entorno systemd-nspawn
 systemd-nspawn_exec(){
-  LANG=C systemd-nspawn -q --bind ${QEMUBIN} --setenv=RUNLEVEL=1 -M ${MACHINE} -D ${R} "$@"
+  LANG=C systemd-nspawn -q --bind ${QEMUBIN} --capability=cap_setfcap --setenv=RUNLEVEL=1 -M ${MACHINE} -D ${R} "$@"
 }
 
 # Base debootstrap
 COMPONENTS="main contrib non-free"
 MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron eatmydata wget libterm-readline-gnu-perl"
 EXTRAPKGS="openssh-server parted sudo gnupg gnupg2 locales dosfstools"
-FIRMWARES="firmware-misc-nonfree firmware-atheros firmware-realtek firmware-brcm80211"
+FIRMWARES="firmware-{misc-nonfree,atheros,realtek,brcm80211,libertas}"
 WIRELESSPKGS="wpasupplicant crda wireless-tools rfkill wireless-regdb"
 BLUETOOTH="bluetooth bluez bluez-tools"
 DESKTOP="desktop-base lightdm xserver-xorg"
@@ -385,7 +384,7 @@ EOM
 
 # Habilitar SWAP
 echo 'vm.swappiness = 50' >> $R/etc/sysctl.conf
-systemd-nspawn_exec apt-get install -y dphys-swapfile
+systemd-nspawn_exec apt-get install -y dphys-swapfile 2> /dev/null
 sed -i 's/#CONF_SWAPSIZE=/CONF_SWAPSIZE=128/g' $R/etc/dphys-swapfile
 
 # Configuración firmware
