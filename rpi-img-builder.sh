@@ -4,8 +4,7 @@
 This script is licensed under the terms of the MIT license.
 Unless otherwise noted, code reproduced herein
 was written for this script.
-
-- Fco Jose Rodriguez Martos - frangal_at_gmail.com -
+- Fco José Rodríguez Martos - frangal_at_gmail.com -
 DISCLAIMER
 
 # Descomentar para activar debug
@@ -27,8 +26,8 @@ ARCHITECTURE=${ARCHITECTURE:-"arm64"}
 VARIANT=${VARIANT:-"lite"}
 IMGNAME=${OS}-${RELEASE}-${VARIANT}-${ARCHITECTURE}
 FSTYPE=${FSTYPE:-"ext4"}
-BOOT_MB="${BOOT_MB:-"136"}"
-FREE_SPACE="${FREE_SPACE:-"180"}"
+BOOT_MB=${BOOT_MB:-"136"}
+FREE_SPACE=${FREE_SPACE:-"180"}
 MACHINE=$(dbus-uuidgen)
 
 # Mirrors de descarga
@@ -342,9 +341,10 @@ if [[ "${VARIANT}" == "slim" ]]; then
   INCLUDEPKGS="${EXTRAPKGS} firmware-brcm80211 ${WIRELESSPKGS}"
 elif [[ "${VARIANT}" == "lite" ]]; then
   INCLUDEPKGS="${EXTRAPKGS} ${FIRMWARES} ${WIRELESSPKGS} ${BLUETOOTH}"
-elif [[ "${VARIANT}" == "desktop" ]]; then
+elif [[ "${VARIANT}" == "full" ]]; then
   INCLUDEPKGS="${EXTRAPKGS} ${FIRMWARES} ${WIRELESSPKGS} ${BLUETOOTH} ${DESKTOP}"
 fi
+# Añadir paquetes extra a la compilación
 if [ ! -z "$ADDPKG" ]; then
   INCLUDEPKGS="${INCLUDEPKGS} ${ADDPKG}"
 fi
@@ -384,7 +384,7 @@ EOM
 
 # Habilitar SWAP
 echo 'vm.swappiness = 50' >> $R/etc/sysctl.conf
-systemd-nspawn_exec apt-get install -y dphys-swapfile 2> /dev/null
+systemd-nspawn_exec apt-get install -y dphys-swapfile > /dev/null 2>&1
 sed -i 's/#CONF_SWAPSIZE=/CONF_SWAPSIZE=128/g' $R/etc/dphys-swapfile
 
 # Configuración firmware
