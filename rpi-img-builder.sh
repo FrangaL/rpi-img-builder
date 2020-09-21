@@ -124,7 +124,7 @@ NSPAWN_VER=$(systemd-nspawn --version | awk '{if(NR==1) print $2}')
 # Entorno systemd-nspawn
 systemd-nspawn_exec(){
   [[ $NSPAWN_VER -ge 241 ]] && EXTRA_ARGS="--hostname=$HOST_NAME" || true
-  [[ $NSPAWN_VER -ge 246 ]] && EXTRA_ARGS="--console=pipe --hostname=$HOST_NAME" || true
+  [[ $NSPAWN_VER -ge 245 ]] && EXTRA_ARGS="--console=pipe --hostname=$HOST_NAME" || true
   systemd-nspawn -q --bind $QEMUBIN $EXTRA_ARGS --capability=cap_setfcap -E RUNLEVEL=1,LANG=C -M $MACHINE -D ${R} "$@"
 }
 
