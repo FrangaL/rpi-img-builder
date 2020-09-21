@@ -85,7 +85,7 @@ done
 
 # Instalar dependencias necesarias
 DEPS="binfmt-support dosfstools qemu-user-static rsync wget lsof git parted dirmngr \
-systemd-container debootstrap eatmydata xz-utils kmod udev dbus gnupg gnupg-utils"
+systemd-container debootstrap eatmydata xz-utils kmod udev dbus gnupg gnupg-utils debian-archive-keyring"
 installdeps
 
 # Checkear versión mínima debootstrap
