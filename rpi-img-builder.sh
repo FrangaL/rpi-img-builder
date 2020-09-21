@@ -35,6 +35,12 @@ DEB_MIRROR="http://deb.debian.org/debian"
 PI_MIRROR="http://raspbian.raspberrypi.org/raspbian/"
 RASP_MIRROR="http://archive.raspbian.org/raspbian/"
 
+# Cargar configuración de la compilación
+if [ -f ./config.txt ]; then
+  source ./config.txt
+  IMGNAME=${OS}-${RELEASE}-${VARIANT}-${ARCHITECTURE}
+fi
+
 # Entorno de trabajo
 CURRENT_DIR="$(pwd)"
 BASEDIR="${CURRENT_DIR}/${OS}_${RELEASE}_${VARIANT}_${ARCHITECTURE}"
@@ -55,12 +61,6 @@ elif [[ $BASEDIR =~ [[:space:]] ]]; then
   exit 1
 else
   mkdir -p $R
-fi
-
-# Cargar configuración de la compilación
-if [ -f ./config.txt ]; then
-  source ./config.txt
-  IMGNAME=${OS}-${RELEASE}-${VARIANT}-${ARCHITECTURE}
 fi
 
 # Configuración de red
