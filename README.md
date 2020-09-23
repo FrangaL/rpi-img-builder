@@ -53,7 +53,7 @@ sudo ARCHITECTURE="armhf" ./rpi-img-builder.sh
 Seleccionar el sistema de archivos de la partición /root entre ext4 y f2fs.
 
 ```shell
-sudo FSTYPE="f2fs" ./rpi-img-builder.sh
+sudo FSTYPE="f2fs" ./rpi-img-builder.sh # Experimental
 ```
 ---
 * `NETWORK` (Default: "dhcp")
@@ -143,7 +143,7 @@ apt-cacher-ng.
 Si desea deshabilitar el uso de proxy ejecute:
 
 ```shell
-sudo PROXY_URL="none" ./rpi-img-builder.sh
+sudo PROXY_URL="" ./rpi-img-builder.sh
 ```
 
 Si desea utilizar un proxy externo ejecute:
@@ -157,11 +157,7 @@ sudo PROXY_URL="http://external.proxy.loc:3142" ./rpi-img-builder.sh
 Podremos ejecutar el script con las configuraciones por defecto ejecutando:
 
 ```shell
-wget https://git.io/rpi-img-builder.sh
-
-chmod +x rpi-img-builder.sh
-
-sudo ./rpi-img-builder.sh
+sudo bash <(wget -qO- https://git.io/rpi-img-builder.sh)
 ```
 Si desea construir una compilación personalizada:
 
