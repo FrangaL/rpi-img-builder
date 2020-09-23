@@ -227,6 +227,7 @@ APT::AutoRemove::RecommendsImportant "false";
 APT::AutoRemove::SuggestsImportant "false";
 EOF
   cat > $R/etc/dpkg/dpkg.cfg.d/01_no_doc_locale <<EOF
+path-exclude=/usr/lib/systemd/catalog/*
 path-exclude /usr/share/doc/*
 path-include /usr/share/doc/*/copyright
 path-exclude /usr/share/man/*
@@ -237,6 +238,12 @@ path-exclude /usr/share/linda/*
 path-exclude /usr/share/locale/*
 path-include /usr/share/locale/en*
 path-include /usr/share/locale/es*
+EOF
+
+# Raspberry PI no tiene pci ni acpi
+  cat > $R/etc/dpkg/dpkg.cfg.d/02_no_pci_acpi <<EOF
+path-exclude=/lib/udev/hwdb.d/20-pci*
+path-exclude=/lib/udev/hwdb.d/20-acpi*
 EOF
 fi
 
