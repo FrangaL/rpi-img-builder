@@ -237,6 +237,7 @@ path-exclude /usr/share/linda/*
 path-exclude /usr/share/locale/*
 path-include /usr/share/locale/en*
 path-include /usr/share/locale/es*
+path-include /usr/share/locale/locale.alias
 EOF
 
 # Raspberry PI no tiene pci ni acpi
@@ -379,12 +380,12 @@ systemd-nspawn_exec ln -nfs /usr/share/zoneinfo/$TIMEZONE /etc/localtime
 systemd-nspawn_exec dpkg-reconfigure -fnoninteractive tzdata
 
 # Sin contraseña sudo en el usuario pi
-echo "pi ALL=(ALL) NOPASSWD:ALL" >> $R/etc/sudoers
+echo "pi ALL=(ALL) NOPASSWD:ALL" >> "$R"/etc/sudoers
 
 # Configurar locales
-sed -i 's/^# *\($LOCALES\)/\1/' $R/etc/locale.gen
+sed -i "s/^# *\($LOCALES\)/\1/" "$R"/etc/locale.gen
 systemd-nspawn_exec locale-gen
-echo "LANG=$LOCALES" >$R/etc/locale.conf
+echo "LANG=$LOCALES" > "$R"/etc/locale.conf
 cat <<'EOM' >$R/etc/profile.d/default-lang.sh
 if [ -z "$LANG" ]; then
     source /etc/locale.conf
@@ -393,28 +394,30 @@ fi
 EOM
 
 # Habilitar SWAP
-echo 'vm.swappiness = 50' >> $R/etc/sysctl.conf
+echo 'vm.swappiness = 50' >> "$R"/etc/sysctl.conf
 systemd-nspawn_exec apt-get install -y dphys-swapfile > /dev/null 2>&1
-sed -i 's/#CONF_SWAPSIZE=/CONF_SWAPSIZE=128/g' $R/etc/dphys-swapfile
+sed -i "s/#CONF_SWAPSIZE=/CONF_SWAPSIZE=128/g" "$R"/etc/dphys-swapfile
 
 # Configuración firmware
 if [ $OS = raspios ]; then
-cat <<EOM >${R}${BOOT}/cmdline.txt
+  cat <<EOM >${R}${BOOT}/cmdline.txt
 net.ifnames=0 dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootwait
 EOM
-cat <<EOF >>$R/${BOOT}/config.txt
-arm_64bit=1
-hdmi_force_hotplug=1
-EOF
+  if [ "$ARCHITECTURE" = "arm64" ]; then
+    echo "arm_64bit=1" >>"$R"/"${BOOT}"/config.txt
+    echo "hdmi_force_hotplug=1" >>"$R"/"${BOOT}"/config.txt
+  else
+    echo "hdmi_force_hotplug=1" >>"$R"/"${BOOT}"/config.txt
+  fi
 fi
 
 # Instalar f2fs-tools y modificar cmdline.txt
-if [ $FSTYPE = f2fs ]; then
+if [ "$FSTYPE" = "f2fs" ]; then
   DEPS="f2fs-tools" installdeps
   systemd-nspawn_exec apt-get install -y f2fs-tools
-  sed -i 's/resize2fs/resize.f2fs/g' $R/usr/sbin/rpi-resizerootfs
+  sed -i 's/resize2fs/resize.f2fs/g' "$R"/usr/sbin/rpi-resizerootfs
   FSOPTS="rw,acl,active_logs=6,background_gc=on,user_xattr"
-elif [ $FSTYPE = ext4 ]; then
+elif [ "$FSTYPE" = "ext4" ]; then
   FSOPTS="defaults,noatime"
 fi
 
