@@ -24,7 +24,6 @@ LOCALES=${LOCALES:-"es_ES.UTF-8"}
 TIMEZONE=${TIMEZONE:-"Europe/Madrid"}
 ARCHITECTURE=${ARCHITECTURE:-"arm64"}
 VARIANT=${VARIANT:-"lite"}
-IMGNAME=${OS}-${RELEASE}-${VARIANT}-${ARCHITECTURE}
 FSTYPE=${FSTYPE:-"ext4"}
 BOOT_MB=${BOOT_MB:-"136"}
 FREE_SPACE=${FREE_SPACE:-"180"}
@@ -38,10 +37,10 @@ RASP_MIRROR="http://archive.raspbian.org/raspbian/"
 # Cargar configuración de la compilación
 if [ -f ./config.txt ]; then
   source ./config.txt
-  IMGNAME=${OS}-${RELEASE}-${VARIANT}-${ARCHITECTURE}
 fi
 
 # Entorno de trabajo
+IMGNAME="${OS}-${RELEASE}-${VARIANT}-${ARCHITECTURE}.img"
 CURRENT_DIR="$(pwd)"
 BASEDIR="${CURRENT_DIR}/${OS}_${RELEASE}_${VARIANT}_${ARCHITECTURE}"
 R="${BASEDIR}/build"
@@ -194,13 +193,13 @@ eatmydata debootstrap --foreign --arch=${ARCHITECTURE} --components=${COMPONENTS
 
 # Habilitar proxy http second stage
 if [ -n "$PROXY_URL" ]; then
-	echo "Acquire::http { Proxy \"$PROXY_URL\" };" > $R/etc/apt/apt.conf.d/66proxy
+	echo "Acquire::http { Proxy \"$PROXY_URL\" };" > "$R"/etc/apt/apt.conf.d/66proxy
 fi
 
-for archive in $R/var/cache/apt/archives/*eatmydata*.deb; do
-  dpkg-deb --fsys-tarfile "$archive" >$R/eatmydata
-  tar -xkf $R/eatmydata -C $R
-  rm -f $R/eatmydata
+for archive in "$R"/var/cache/apt/archives/*eatmydata*.deb; do
+  dpkg-deb --fsys-tarfile "$archive" >"$R"/eatmydata
+  tar -xkf "$R"/eatmydata -C "$R"
+  rm -f "$R"/eatmydata
 done
 
 systemd-nspawn_exec dpkg-divert --divert /usr/bin/dpkg-eatmydata --rename --add /usr/bin/dpkg
@@ -221,12 +220,12 @@ EOF
 chmod 755 $R/usr/bin/dpkg
 
 if [[ "${VARIANT}" == "slim" ]]; then
-  cat > $R/etc/apt/apt.conf.d/99_norecommends <<EOF
+  cat > "$R"/etc/apt/apt.conf.d/99_norecommends <<EOF
 APT::Install-Recommends "false";
 APT::AutoRemove::RecommendsImportant "false";
 APT::AutoRemove::SuggestsImportant "false";
 EOF
-  cat > $R/etc/dpkg/dpkg.cfg.d/01_no_doc_locale <<EOF
+  cat > "$R"/etc/dpkg/dpkg.cfg.d/01_no_doc_locale <<EOF
 path-exclude=/usr/lib/systemd/catalog/*
 path-exclude /usr/share/doc/*
 path-include /usr/share/doc/*/copyright
@@ -241,7 +240,7 @@ path-include /usr/share/locale/es*
 EOF
 
 # Raspberry PI no tiene pci ni acpi
-  cat > $R/etc/dpkg/dpkg.cfg.d/02_no_pci_acpi <<EOF
+  cat > "$R"/etc/dpkg/dpkg.cfg.d/02_no_pci_acpi <<EOF
 path-exclude=/lib/udev/hwdb.d/20-pci*
 path-exclude=/lib/udev/hwdb.d/20-acpi*
 EOF
@@ -288,7 +287,7 @@ if [ "$OS" = "raspios" ]; then
 fi
 
 # Script para generar las key de OpenSSH server
-cat <<EOM >$R/etc/systemd/system/generate-ssh-host-keys.service
+cat > "$R"/etc/systemd/system/generate-ssh-host-keys.service <<EOM
 [Unit]
 Description=OpenSSH server key generation
 ConditionPathExistsGlob=!/etc/ssh/ssh_host_*_key
@@ -302,7 +301,7 @@ RequiredBy=multi-user.target
 EOM
 
 # Scripts para redimensionar partición root
-cat <<EOM >$R/etc/systemd/system/rpi-resizerootfs.service
+cat > "$R"/etc/systemd/system/rpi-resizerootfs.service <<EOM
 [Unit]
 Description=resize root file system
 Before=local-fs-pre.target
@@ -373,7 +372,7 @@ systemctl enable generate-ssh-host-keys.service
 EOF
 
 # Añadir nombre de host
-echo $HOST_NAME > $R/etc/hostname
+echo "$HOST_NAME" > "$R"/etc/hostname
 
 # Definir zona horaria
 systemd-nspawn_exec ln -nfs /usr/share/zoneinfo/$TIMEZONE /etc/localtime
@@ -451,7 +450,7 @@ iface wlan0 inet dhcp
 wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf
 EOF
 
-if [[ $NETWORK == "static" ]] ; then
+if [[ "$NETWORK" == "static" ]] ; then
   echo "address $IPV4" >>$R/etc/network/interfaces
   echo "netmask $NETMASK" >>$R/etc/network/interfaces
   echo "gateway $ROUTER" >>$R/etc/network/interfaces
@@ -464,11 +463,11 @@ update_config=1
 country=${WPA_COUNTRY:-"00"}
 EOF
 
-if [ ! -z $WPA_ESSID ] && [ ! -z $WPA_PASSWORD ] && [ ! ${#WPA_PASSWORD} \< "8" ]; then
+if [ ! -z "$WPA_ESSID" ] && [ ! -z "$WPA_PASSWORD" ] && [ ! "${#WPA_PASSWORD}" -lt "8" ]; then
 systemd-nspawn_exec <<\EOF
 wpa_passphrase ${WPA_ESSID} ${WPA_PASSWORD} | tee -a /etc/wpa_supplicant/wpa_supplicant.conf
 EOF
-elif [ ! -z $WPA_ESSID ]; then
+elif [ ! -z "$WPA_ESSID" ]; then
 cat <<\EOM >>$R/etc/wpa_supplicant/wpa_supplicant.conf
 network={
 	ssid="${WPA_ESSID}"
@@ -478,8 +477,8 @@ EOM
 fi
 
 # Raspberry PI userland tools
-if [[ $OS = "debian" && ${VARIANT} = "lite" ]]; then
-git clone https://github.com/raspberrypi/userland.git $R/userland
+if [[ "$OS" = "debian" && "$VARIANT" = "lite" ]]; then
+git clone https://github.com/raspberrypi/userland.git "$R"/userland
 cat <<EOF >$R/userland/compile.sh
 #!/bin/bash -e
 dpkg --get-selections > /bkp-packages
@@ -503,7 +502,7 @@ dpkg --set-selections < /bkp-packages
 apt-get -y dselect-upgrade
 apt-get -y remove --purge \$(dpkg -l | grep "^rc" | awk '{print \$2}')
 EOF
-chmod +x $R/userland/compile.sh
+chmod +x "$R"/userland/compile.sh
 systemd-nspawn_exec /userland/compile.sh
 
 # Reglas udev Raspberry PI
@@ -523,55 +522,55 @@ SUBSYSTEM=="gpio*", PROGRAM="/bin/sh -c '\
     chown -R root:gpio /sys$devpath && chmod -R 770 /sys$devpath\
 '"
 EOF
-elif [[ $OS = "raspios" && ${VARIANT} = "lite" ]]; then
+elif [[ "$OS" = "raspios" && "$VARIANT" = "lite" ]]; then
   systemd-nspawn_exec apt-get install -y libraspberrypi-bin
 fi
 
 # Limpiar sistema
 if [ -n "$PROXY_URL" ]; then
   unset http_proxy
-  rm -rf ${R}/etc/apt/apt.conf.d/66proxy
+  rm -rf "$R"/etc/apt/apt.conf.d/66proxy
 fi
-rm -f $R/usr/bin/dpkg
+rm -f "$R"/usr/bin/dpkg
 systemd-nspawn_exec dpkg-divert --remove --rename /usr/bin/dpkg
 for logs in $(find $R/var/log -type f); do > $logs; done
-rm -f $R/usr/bin/qemu*
-rm -f $R/bkp-packages
-rm -rf $R/userland
-rm -rf $R/opt/vc/src
-if [[ "${VARIANT}" == "slim" ]]; then
+rm -f "$R"/usr/bin/qemu*
+rm -f "$R"/bkp-packages
+rm -rf "$R"/userland
+rm -rf "$R"/opt/vc/src
+if [[ "$VARIANT" == "slim" ]]; then
   SLIM_PKGS="wget tasksel eatmydata libeatmydata1"
   systemd-nspawn_exec apt-get -y remove --purge $SLIM_PKGS
-  find $R/usr/share/doc -depth -type f ! -name copyright -print0 | xargs -0 rm
-  find $R/usr/share/doc -empty -print0 | xargs -0 rmdir
-  rm -rf $R/usr/share/man/* $R/usr/share/info/*
-  rm -rf $R/usr/share/lintian/*
-  rm -rf $R/etc/apt/apt.conf.d/99_norecommends
-  rm -rf $R/etc/dpkg/dpkg.cfg.d/01_no_doc_locale
+  find "$R"/usr/share/doc -depth -type f ! -name copyright -print0 | xargs -0 rm
+  find "$R"/usr/share/doc -empty -print0 | xargs -0 rmdir
+  rm -rf "$R"/usr/share/man/* "$R"/usr/share/info/*
+  rm -rf "$R"/usr/share/lintian/*
+  rm -rf "$R"/etc/apt/apt.conf.d/99_norecommends
+  rm -rf "$R"/etc/dpkg/dpkg.cfg.d/01_no_doc_locale
 fi
-echo "nameserver $DNS" >$R/etc/resolv.conf
-rm -rf $R/run/* $R/etc/*- $R/tmp/*
-rm -rf $R/var/lib/apt/lists/*
-rm -rf $R/var/cache/apt/archives/*
-rm -rf $R/var/cache/apt/*.bin
-rm -rf $R/var/cache/debconf/*-old
-rm -rf $R/var/lib/dpkg/*-old
-rm -rf /etc/ssh/ssh_host_*
-rm -f $R/root/.bash_history
+echo "nameserver $DNS" >"$R"/etc/resolv.conf
+rm -rf "$R"/run/* "$R"/etc/*- "$R"/tmp/*
+rm -rf "$R"/var/lib/apt/lists/*
+rm -rf "$R"/var/cache/apt/archives/*
+rm -rf "$R"/var/cache/apt/*.bin
+rm -rf "$R"/var/cache/debconf/*-old
+rm -rf "$R"/var/lib/dpkg/*-old
+rm -rf "$R"/etc/ssh/ssh_host_*
+rm -rf "$R"/root/.bash_history
 
 # Calcule el espacio para crear la imagen.
-ROOTSIZE=$(du -s -B1 ${R} --exclude=${R}/boot | cut -f1)
-ROOTSIZE=$((+${ROOTSIZE}/1024/1000*5*1024/5))
-RAW_SIZE=$(($((${FREE_SPACE}*1024))+${ROOTSIZE}+$((${BOOT_MB}*1024))+4096))
+ROOTSIZE=$(du -s -B1 "$R" --exclude=${R}/boot | cut -f1)
+ROOTSIZE=$((ROOTSIZE/1024/1000*5*1024/5))
+RAW_SIZE=$(($((FREE_SPACE*1024))+ROOTSIZE+$((BOOT_MB*1024))+4096))
 
 # Crea el disco y particionar
-fallocate -l $(echo ${RAW_SIZE}Ki | numfmt --from=iec-i --to=si) ${IMGNAME}.img
-parted -s ${IMGNAME}.img mklabel msdos
-parted -s ${IMGNAME}.img mkpart primary fat32 1MiB $((${BOOT_MB}+1))MiB
-parted -s -a minimal ${IMGNAME}.img mkpart primary $((${BOOT_MB}+1))MiB 100%
+fallocate -l $(echo ${RAW_SIZE}Ki | numfmt --from=iec-i --to=si) "${IMGNAME}"
+parted -s "${IMGNAME}" mklabel msdos
+parted -s "${IMGNAME}" mkpart primary fat32 1MiB $((BOOT_MB+1))MiB
+parted -s -a minimal "${IMGNAME}" mkpart primary $((BOOT_MB+1))MiB 100%
 
 # Establecer las variables de partición
-LOOPDEVICE=$(losetup --show -fP "${IMGNAME}.img")
+LOOPDEVICE=$(losetup --show -fP "${IMGNAME}")
 BOOT_LOOP="${LOOPDEVICE}p1"
 ROOT_LOOP="${LOOPDEVICE}p2"
 
@@ -598,28 +597,27 @@ rsync -rtx "${R}/boot" "${MOUNTDIR}/"
 # Desmontar sistema de archivos y eliminar compilación
 umount "$MOUNTDIR/$BOOT"
 umount "$MOUNTDIR"
-rm -rf $BASEDIR
+rm -rf "$BASEDIR"
 
 # Chequear particiones
 dosfsck -w -r -l -a -t "$BOOT_LOOP"
-if [[ $FSTYPE == f2fs ]]; then
+if [[ "$FSTYPE" == "f2fs" ]]; then
   fsck.f2fs -y -f "$ROOT_LOOP"
-elif [[ $FSTYPE == ext4 ]]; then
+elif [[ "$FSTYPE" == "ext4" ]]; then
   e2fsck -y -f "$ROOT_LOOP"
 fi
 
 # Eliminar dispositivos loop
 losetup -d "${LOOPDEVICE}"
 
-IMGNAME=${IMGNAME}.img
-chmod 664 ${IMGNAME}
-
 # Comprimir imagen
-if [[ $COMPRESS == gzip ]]; then
+if [[ "$COMPRESS" == "gzip" ]]; then
   gzip "${IMGNAME}"
-  chmod 664 ${IMGNAME}.gz
-elif [[ $COMPRESS == xz ]]; then
-  [ $(nproc) \< 3 ] || CPU_CORES=4 # CPU_CORES = Número de núcleos a usar
-  xz -T ${CPU_CORES:-2} "${IMGNAME}"
-  chmod 664 ${IMGNAME}.xz
+  chmod 664 "${IMGNAME}.gz"
+elif [[ "$COMPRESS" == "xz" ]]; then
+  [ $(nproc) -lt 4 ] || CPU_CORES=4 # CPU_CORES = Número de núcleos a usar
+  xz -T "${CPU_CORES:-2}" "${IMGNAME}"
+  chmod 664 "${IMGNAME}.xz"
+else
+  chmod 664 "${IMGNAME}"
 fi
