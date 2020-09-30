@@ -64,7 +64,7 @@ Podemos definir manualmente la configuración de red.
 echo IPV4="192.168.10.100"    >> config.txt
 echo NETMASK="255.255.255.0"  >> config.txt
 echo ROUTER="192.168.10.1"    >> config.txt
-echo DNS="8.8.8.8.8"          >> config.txt
+echo DNS="8.8.8.8"            >> config.txt
 ```
 ---
 * `WIRELESS`
@@ -173,7 +173,7 @@ echo BOOT_MB="150"            >> config.txt
 echo IPV4="192.168.10.100"    >> config.txt
 echo NETMASK="255.255.255.0"  >> config.txt
 echo ROUTER="192.168.10.1"    >> config.txt
-echo DNS="8.8.8.8.8"          >> config.txt
+echo DNS="8.8.8.8"            >> config.txt
 echo TIMEZONE="Europe/Madrid" >> config.txt
 echo LOCALES="es_ES.UTF-8"    >> config.txt
 
