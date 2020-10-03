@@ -318,7 +318,7 @@ ExecStart=/bin/systemctl --no-reload disable %n
 RequiredBy=local-fs-pre.target
 EOM
 
-cat <<\EOM >$R/usr/sbin/rpi-resizerootfs
+cat > "$R"/usr/sbin/rpi-resizerootfs <<\EOM
 #!/bin/sh
 DISKPART="$(findmnt -n -o SOURCE /)"
 DISKNAME="/dev/$(lsblk -no pkname "$DISKPART")"
@@ -333,15 +333,15 @@ flock ${DISKNAME} partprobe ${DISKNAME}
 mount -o remount,rw ${DISKPART}
 resize2fs ${DISKPART}
 EOM
+chmod -c 755 "$R"/usr/sbin/rpi-resizerootfs
 
 # Configuración de usuarios y grupos
 systemd-nspawn_exec << _EOF
 echo "root:${ROOT_PASSWORD}" | chpasswd
 adduser --gecos pi --disabled-password pi
-adduser pi sudo
 echo "pi:${ROOT_PASSWORD}" | chpasswd
 echo spi i2c gpio | xargs -n 1 groupadd -r
-usermod -a -G adm,dialout,sudo,audio,video,plugdev,users,netdev,input,spi,gpio,i2c pi
+usermod -a -G adm,dialout,sudo,audio,video,plugdev,users,netdev,input,spi,gpio,i2c,sudo pi
 _EOF
 
 # Instalando kernel
@@ -366,7 +366,6 @@ systemd-nspawn_exec eatmydata apt-get $APTOPTS $INCLUDEPKGS
 # Activar servicios generate-ssh-host-keys y rpi-resizerootfs
 echo | sed -e '/^#/d ; /^ *$/d' | systemd-nspawn_exec << \EOF
 # Activar servicio redimendionado partición root
-chmod 755 /usr/sbin/rpi-resizerootfs
 systemctl enable rpi-resizerootfs.service
 # Activar servicio generación ket SSH
 systemctl enable generate-ssh-host-keys.service
@@ -422,20 +421,19 @@ elif [ "$FSTYPE" = "ext4" ]; then
 fi
 
 # Definiendo puntos de montaje
-cat <<EOM >$R/etc/fstab
+cat > $R/etc/fstab <<EOM
 proc            /proc           proc    defaults          0       0
 /dev/mmcblk0p2  /               $FSTYPE    $FSOPTS  0       1
 /dev/mmcblk0p1  $BOOT  vfat    defaults          0       2
 EOM
 
 # Crear archivo hosts
-cat <<EOM >$R/etc/hosts
+cat > $R/etc/hosts <<EOM
+127.0.1.1       ${HOST_NAME}
 127.0.0.1       localhost
 ::1             localhostnet.ifnames=0 ip6-localhost ip6-loopback
 ff02::1         ip6-allnodes
 ff02::2         ip6-allrouters
-
-127.0.1.1       ${HOST_NAME}
 EOM
 
 # Preparar configuración de red
@@ -486,7 +484,7 @@ cat <<EOF >$R/userland/compile.sh
 #!/bin/bash -e
 dpkg --get-selections > /bkp-packages
 apt-get install -y cmake make g++ pkg-config git-core
-cd /userland && mkdir build
+mkdir /userland/build
 pushd /userland/build
 cmake -DCMAKE_TOOLCHAIN_FILE="makefiles/cmake/toolchains/${LIB_ARCH}.cmake" \
 -DCMAKE_BUILD_TYPE=release -DALL_APPS=OFF $CMAKE_ARM ../
