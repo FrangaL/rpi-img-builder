@@ -31,13 +31,15 @@ MACHINE=$(dbus-uuidgen)
 
 # Mirrors de descarga
 DEB_MIRROR="http://deb.debian.org/debian"
-PI_MIRROR="http://raspbian.raspberrypi.org/raspbian/"
+PIOS_MIRROR="http://raspbian.raspberrypi.org/raspbian/"
 RASP_MIRROR="http://archive.raspbian.org/raspbian/"
+# raspberrypi-archive-keyring
+PIOS_KEY="82B129927FA3303E"
+# raspbian-archive-keyring
+RASP_KEY="9165938D90FDDD2E"
 
-# Cargar configuración de la compilación
-if [ -f ./config.txt ]; then
-  source ./config.txt
-fi
+# Cargar configuración personalizada en la compilación.
+if [ -f ./config.txt ];then source ./config.txt;fi
 
 # Entorno de trabajo
 IMGNAME="${OS}-${RELEASE}-${VARIANT}-${ARCHITECTURE}.img"
@@ -129,8 +131,8 @@ systemd-nspawn_exec(){
 
 # Base debootstrap
 COMPONENTS="main contrib non-free"
-MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron eatmydata wget libterm-readline-gnu-perl"
-EXTRAPKGS="openssh-server parted sudo gnupg gnupg2 locales dosfstools"
+MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron eatmydata wget gnupg"
+EXTRAPKGS="openssh-server parted locales dosfstools sudo libterm-readline-gnu-perl"
 FIRMWARES="firmware-misc-nonfree firmware-atheros firmware-realtek firmware-brcm80211 firmware-libertas"
 WIRELESSPKGS="wpasupplicant crda wireless-tools rfkill wireless-regdb"
 BLUETOOTH="bluetooth bluez bluez-tools"
@@ -141,8 +143,6 @@ if [[ "${OS}" == "debian" ]]; then
   MIRROR=$DEB_MIRROR
   BOOTSTRAP_URL=$MIRROR
   KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
-  KEYRING_FILE=debian-archive-keyring_2019.1_all.deb
-  KEYRING_PKG=${DEB_MIRROR}/pool/main/d/debian-archive-keyring/${KEYRING_FILE}
   # Seleccionar kernel y bootloader
   case ${OS}+${ARCHITECTURE} in
     debian*arm64) KERNEL_IMAGE="linux-image-arm64 raspi3-firmware";;
@@ -153,27 +153,22 @@ elif [[ "${OS}" == "raspios" ]]; then
   KERNEL_IMAGE="raspberrypi-kernel raspberrypi-bootloader"
   case ${OS}+${ARCHITECTURE} in
     raspios*arm64)
-    MIRROR=$PI_MIRROR
+    MIRROR=$PIOS_MIRROR
     MIRROR_PIOS=$(echo ${MIRROR/raspbian./archive.}|sed 's/raspbian/debian/g')
     KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
-    KEYRING_FILE=raspberrypi-archive-keyring_2016.10.31_all.deb
-    KEYRING_PKG=$MIRROR_PIOS/pool/main/r/raspberrypi-archive-keyring/$KEYRING_FILE
+    GPG_KEY=$PIOS_KEY
     BOOTSTRAP_URL=$DEB_MIRROR;;
     raspios*armhf)
     MIRROR=$RASP_MIRROR
-    KEYRING_FILE=raspbian-archive-keyring_20120528.2_all.deb
-    KEYRING_PKG=${RASP_MIRROR}/pool/main/r/raspbian-archive-keyring/$KEYRING_FILE
     KEYRING=/usr/share/keyrings/raspbian-archive-keyring.gpg
+    GPG_KEY=$RASP_KEY
     BOOTSTRAP_URL=$RASP_MIRROR;;
   esac
 fi
 
 # Instalar certificados
-if [ ! -f ${KEYRING} ]; then
-  TMP_KEY="$(mktemp -d)"
-  wget $KEYRING_PKG -O ${TMP_KEY}/archive-keyring.deb
-  dpkg -i ${TMP_KEY}/archive-keyring.deb
-  rm -rf ${TMP_KEY}
+if [ ! -f $KEYRING ]; then
+gpg --keyring=$KEYRING --no-default-keyring --keyserver keys.gnupg.net --receive-keys $GPG_KEY
 fi
 
 # Habilitar proxy http first stage
@@ -190,11 +185,6 @@ fi
 # First stage
 eatmydata debootstrap --foreign --arch=${ARCHITECTURE} --components=${COMPONENTS// /,} \
 --keyring=$KEYRING --variant - --include=${MINPKGS// /,} $RELEASE $R $BOOTSTRAP_URL
-
-# Habilitar proxy http second stage
-if [ -n "$PROXY_URL" ]; then
-	echo "Acquire::http { Proxy \"$PROXY_URL\" };" > "$R"/etc/apt/apt.conf.d/66proxy
-fi
 
 for archive in "$R"/var/cache/apt/archives/*eatmydata*.deb; do
   dpkg-deb --fsys-tarfile "$archive" >"$R"/eatmydata
@@ -269,7 +259,7 @@ elif [ "$OS" = "raspios" ]; then
   elif [ "$ARCHITECTURE" = "armhf" ]; then
     echo "deb $MIRROR $RELEASE $COMPONENTS" >$R/etc/apt/sources.list
     echo "#deb-src $MIRROR $RELEASE $COMPONENTS" >>$R/etc/apt/sources.list
-    MIRROR=$(echo ${PI_MIRROR/raspbian./archive.} | sed 's/raspbian/debian/g')
+    MIRROR=$(echo ${PIOS_MIRROR/raspbian./archive.} | sed 's/raspbian/debian/g')
     echo "deb $MIRROR $RELEASE main" >$R/etc/apt/sources.list.d/raspi.list
     echo "#deb-src $MIRROR $RELEASE main" >>$R/etc/apt/sources.list.d/raspi.list
   fi
@@ -277,14 +267,15 @@ fi
 
 # Instalar archive-keyring en PiOS
 if [ "$OS" = "raspios" ]; then
-  wget $KEYRING_PKG -qO $R/root/archive-keyring.deb
-  systemd-nspawn_exec dpkg -i /root/archive-keyring.deb
-  rm -rf $R/root/archive-keyring.deb
-  if [ "$ARCHITECTURE" = "armhf" ]; then
-    wget -qO $R/root/raspberrypi.gpg.key $MIRROR/raspberrypi.gpg.key
-    systemd-nspawn_exec apt-key add /root/raspberrypi.gpg.key
-    rm -rf $R/root/raspberrypi.gpg.key
-  fi
+  systemd-nspawn_exec << EOF
+  apt-key adv --keyserver keys.gnupg.net --recv-keys $PIOS_KEY
+  apt-key adv --keyserver keys.gnupg.net --recv-keys $RASP_KEY
+EOF
+fi
+
+# Habilitar apt proxy http en contenedor
+if [ -n "$PROXY_URL" ]; then
+	echo "Acquire::http { Proxy \"$PROXY_URL\" };" > "$R"/etc/apt/apt.conf.d/66proxy
 fi
 
 # Script para generar las key de OpenSSH server
@@ -402,11 +393,9 @@ if [ $OS = raspios ]; then
   cat <<EOM >${R}${BOOT}/cmdline.txt
 net.ifnames=0 dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootwait
 EOM
+  echo "hdmi_force_hotplug=1" >>"$R"/"${BOOT}"/config.txt
   if [ "$ARCHITECTURE" = "arm64" ]; then
     echo "arm_64bit=1" >>"$R"/"${BOOT}"/config.txt
-    echo "hdmi_force_hotplug=1" >>"$R"/"${BOOT}"/config.txt
-  else
-    echo "hdmi_force_hotplug=1" >>"$R"/"${BOOT}"/config.txt
   fi
 fi
 
