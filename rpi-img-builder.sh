@@ -126,14 +126,15 @@ NSPAWN_VER=$(systemd-nspawn --version | awk '{if(NR==1) print $2}')
 systemd-nspawn_exec(){
   [[ $NSPAWN_VER -ge 241 ]] && EXTRA_ARGS="--hostname=$HOST_NAME" || true
   [[ $NSPAWN_VER -ge 245 ]] && EXTRA_ARGS="--console=pipe --hostname=$HOST_NAME" || true
-  systemd-nspawn -q --bind $QEMUBIN $EXTRA_ARGS --capability=cap_setfcap -E RUNLEVEL=1,LANG=C -M $MACHINE -D ${R} "$@"
+  ENV="RUNLEVEL=1,LANG=C,DEBIAN_FRONTEND=noninteractive"
+  systemd-nspawn -q --bind $QEMUBIN $EXTRA_ARGS --capability=cap_setfcap -E $ENV -M $MACHINE -D ${R} "$@"
 }
 
 # Base debootstrap
 COMPONENTS="main contrib non-free"
 MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron eatmydata wget gnupg"
 EXTRAPKGS="openssh-server parted locales dosfstools sudo libterm-readline-gnu-perl"
-FIRMWARES="firmware-misc-nonfree firmware-atheros firmware-realtek firmware-brcm80211 firmware-libertas"
+FIRMWARES="firmware-misc-nonfree firmware-atheros firmware-realtek firmware-libertas firmware-brcm80211"
 WIRELESSPKGS="wpasupplicant crda wireless-tools rfkill wireless-regdb"
 BLUETOOTH="bluetooth bluez bluez-tools"
 DESKTOP="desktop-base lightdm xserver-xorg"
@@ -145,8 +146,8 @@ if [[ "${OS}" == "debian" ]]; then
   KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
   # Seleccionar kernel y bootloader
   case ${OS}+${ARCHITECTURE} in
-    debian*arm64) KERNEL_IMAGE="linux-image-arm64 raspi3-firmware";;
-    debian*armhf) KERNEL_IMAGE="linux-image-armmp raspi3-firmware";;
+    debian*arm64) KERNEL_IMAGE="linux-image-arm64/buster-backports raspi3-firmware";;
+    debian*armhf) KERNEL_IMAGE="linux-image-armmp/buster-backports raspi3-firmware";;
   esac
 elif [[ "${OS}" == "raspios" ]]; then
   BOOT="/boot"
@@ -216,7 +217,7 @@ APT::AutoRemove::RecommendsImportant "false";
 APT::AutoRemove::SuggestsImportant "false";
 EOF
   cat > "$R"/etc/dpkg/dpkg.cfg.d/01_no_doc_locale <<EOF
-path-exclude=/usr/lib/systemd/catalog/*
+path-exclude /usr/lib/systemd/catalog/*
 path-exclude /usr/share/doc/*
 path-include /usr/share/doc/*/copyright
 path-exclude /usr/share/man/*
@@ -242,6 +243,7 @@ systemd-nspawn_exec eatmydata /debootstrap/debootstrap --second-stage
 
 # Definir sources.list
 if [ "$OS" = "debian" ]; then
+  echo "APT::Default-Release \"$RELEASE\";" > "$R"/etc/apt/apt.conf
   echo -e "\
   deb $MIRROR $RELEASE $COMPONENTS\n\
   #deb-src $MIRROR $RELEASE $COMPONENTS\n\
@@ -249,6 +251,7 @@ if [ "$OS" = "debian" ]; then
   #deb-src $MIRROR-security/ $RELEASE/updates $COMPONENTS\n\
   deb $MIRROR $RELEASE-updates $COMPONENTS\n\
   #deb-src $MIRROR $RELEASE-updates $COMPONENTS\n\
+  deb $MIRROR $RELEASE-backports $COMPONENTS\n\
   " > $R/etc/apt/sources.list
 elif [ "$OS" = "raspios" ]; then
   if [ "$ARCHITECTURE" = "arm64" ]; then
@@ -340,15 +343,20 @@ systemd-nspawn_exec eatmydata apt-get update
 systemd-nspawn_exec eatmydata apt-get $APTOPTS ${KERNEL_IMAGE}
 
 if [[ "${VARIANT}" == "slim" ]]; then
-  INCLUDEPKGS="${EXTRAPKGS} firmware-brcm80211 ${WIRELESSPKGS}"
+  INCLUDEPKGS="${EXTRAPKGS} ${WIRELESSPKGS} firmware-brcm80211"
 elif [[ "${VARIANT}" == "lite" ]]; then
-  INCLUDEPKGS="${EXTRAPKGS} ${FIRMWARES} ${WIRELESSPKGS} ${BLUETOOTH}"
+  INCLUDEPKGS="${EXTRAPKGS} ${WIRELESSPKGS} ${BLUETOOTH} ${FIRMWARES}"
 elif [[ "${VARIANT}" == "full" ]]; then
-  INCLUDEPKGS="${EXTRAPKGS} ${FIRMWARES} ${WIRELESSPKGS} ${BLUETOOTH} ${DESKTOP}"
+  INCLUDEPKGS="${EXTRAPKGS} ${WIRELESSPKGS} ${BLUETOOTH} ${DESKTOP} ${FIRMWARES}"
 fi
 # Añadir paquetes extra a la compilación
 if [ ! -z "$ADDPKG" ]; then
-  INCLUDEPKGS="${INCLUDEPKGS} ${ADDPKG}"
+  INCLUDEPKGS="${ADDPKG} ${INCLUDEPKGS}"
+fi
+
+# Usar firmware-brcm80211/buster-backports en Debian
+if [[ "${OS}" == "debian" ]]; then
+  INCLUDEPKGS="${INCLUDEPKGS}/buster-backports"
 fi
 
 # Instalar paquetes extra
@@ -397,6 +405,9 @@ EOM
   if [ "$ARCHITECTURE" = "arm64" ]; then
     echo "arm_64bit=1" >>"$R"/"${BOOT}"/config.txt
   fi
+else
+  sed -i 's/cma=64M/cma=0/' "$R"/boot/firmware/cmdline.txt
+  sed -i 's/#CMA=64M/CMA=0/' "$R"/etc/default/raspi3-firmware
 fi
 
 # Instalar f2fs-tools y modificar cmdline.txt
