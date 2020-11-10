@@ -146,8 +146,10 @@ if [[ "${OS}" == "debian" ]]; then
   KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
   # Seleccionar kernel y bootloader
   case ${OS}+${ARCHITECTURE} in
-    debian*arm64) KERNEL_IMAGE="linux-image-arm64/buster-backports raspi3-firmware";;
-    debian*armhf) KERNEL_IMAGE="linux-image-armmp/buster-backports raspi3-firmware";;
+    debian*arm64)
+      KERNEL_IMAGE="linux-image-arm64/buster-backports raspi-firmware/buster-backports" ;;
+    debian*armhf)
+      KERNEL_IMAGE="linux-image-armmp/buster-backports raspi-firmware/buster-backports" ;;
   esac
 elif [[ "${OS}" == "raspios" ]]; then
   BOOT="/boot"
@@ -408,7 +410,8 @@ EOM
   fi
 else
   sed -i 's/cma=64M/cma=0/' "$R"/boot/firmware/cmdline.txt
-  sed -i 's/#CMA=64M/CMA=0/' "$R"/etc/default/raspi3-firmware
+  sed -i 's/#CMA=64M/CMA=0/' "$R"/etc/default/raspi-firmware
+  sed -i 's/#ROOTPART=/ROOTPART=/' "$R"/etc/default/raspi-firmware
 fi
 
 # Instalar f2fs-tools y modificar cmdline.txt
