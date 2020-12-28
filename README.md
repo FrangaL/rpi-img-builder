@@ -185,11 +185,9 @@ sudo ./rpi-img-builder.sh
 ## Contenedor de Docker para crear imágenes
 
 ```bash
-git clone https://github.com/FrangaL/images-builder.git
+wget https://git.io/rpi-images-builder.yml
 
-cd images-builder
-
-docker-compose --compatibility up -d --build
+docker-compose -f rpi-images-builder.yml --compatibility up -d
 
 docker exec -it rpi-images git pull
 
