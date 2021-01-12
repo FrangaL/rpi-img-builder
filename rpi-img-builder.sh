@@ -33,6 +33,8 @@ MACHINE=$(dbus-uuidgen)
 DEB_MIRROR="http://deb.debian.org/debian"
 PIOS_MIRROR="http://raspbian.raspberrypi.org/raspbian/"
 RASP_MIRROR="http://archive.raspbian.org/raspbian/"
+# Key server
+KEY_SRV=${KEY_SRV:-"keys.gnupg.net"}
 # raspberrypi-archive-keyring
 PIOS_KEY="82B129927FA3303E"
 # raspbian-archive-keyring
@@ -113,7 +115,7 @@ esac
 
 # Detectar modulo binfmt_misc cargado en el kernel
 MODBINFMT=$(lsmod | grep binfmt_misc | awk '{print $1}')
-BINFMTS=$(cat /proc/sys/fs/binfmt_misc/${QEMUARCH} | awk '{if(NR==1) print $1}')
+BINFMTS=$(< /proc/sys/fs/binfmt_misc/${QEMUARCH} awk '{if(NR==1) print $1}')
 if [ -z "${MODBINFMT}" ]; then
   modprobe binfmt_misc &>/dev/null
 elif [ "${BINFMTS}" == "disabled" ]; then
@@ -126,7 +128,7 @@ NSPAWN_VER=$(systemd-nspawn --version | awk '{if(NR==1) print $2}')
 systemd-nspawn_exec(){
   [[ $NSPAWN_VER -ge 241 ]] && EXTRA_ARGS="--hostname=$HOST_NAME" || true
   [[ $NSPAWN_VER -ge 245 ]] && EXTRA_ARGS="--console=pipe --hostname=$HOST_NAME" || true
-  ENV="RUNLEVEL=1,LANG=C,DEBIAN_FRONTEND=noninteractive"
+  ENV="RUNLEVEL=1,LANG=C,DEBIAN_FRONTEND=noninteractive,DEBCONF_NOWARNINGS=yes"
   systemd-nspawn -q --bind $QEMUBIN $EXTRA_ARGS --capability=cap_setfcap -E $ENV -M $MACHINE -D ${R} "$@"
 }
 
@@ -171,7 +173,9 @@ fi
 
 # Instalar certificados
 if [ ! -f $KEYRING ]; then
-gpg --keyring=$KEYRING --no-default-keyring --keyserver keys.gnupg.net --receive-keys $GPG_KEY
+  export GNUPGHOME="$(mktemp -d)"
+  gpg --keyring=$KEYRING --no-default-keyring --keyserver-options timeout=10 --keyserver $KEY_SRV --receive-keys $GPG_KEY
+  rm -rf "${GNUPGHOME}"
 fi
 
 # Habilitar proxy http first stage
@@ -273,8 +277,8 @@ fi
 # Instalar archive-keyring en PiOS
 if [ "$OS" = "raspios" ]; then
   systemd-nspawn_exec << EOF
-  apt-key adv --keyserver keys.gnupg.net --recv-keys $PIOS_KEY
-  apt-key adv --keyserver keys.gnupg.net --recv-keys $RASP_KEY
+  apt-key adv --keyserver-options timeout=10 --keyserver $KEY_SRV --recv-keys $PIOS_KEY
+  apt-key adv --keyserver-options timeout=10 --keyserver $KEY_SRV --recv-keys $RASP_KEY
 EOF
 fi
 
