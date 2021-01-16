@@ -9,7 +9,7 @@ DISCLAIMER
 
 # Descomentar para activar debug
 # debug=true
-if [ "$debug" = true ]; then
+if [ "${debug:=}" = true ]; then
   exec > >(tee -a -i "${0%.*}.log") 2>&1
   set -x
 fi
@@ -173,7 +173,8 @@ fi
 
 # Instalar certificados
 if [ ! -f $KEYRING ]; then
-  export GNUPGHOME="$(mktemp -d)"
+  GNUPGHOME="$(mktemp -d)"
+  export GNUPGHOME
   gpg --keyring=$KEYRING --no-default-keyring --keyserver-options timeout=10 --keyserver $KEY_SRV --receive-keys $GPG_KEY
   rm -rf "${GNUPGHOME}"
 fi
@@ -542,7 +543,7 @@ if [ -n "$PROXY_URL" ]; then
 fi
 rm -f "$R"/usr/bin/dpkg
 systemd-nspawn_exec dpkg-divert --remove --rename /usr/bin/dpkg
-for logs in $(find $R/var/log -type f); do > $logs; done
+find "$R"/var/log -depth -type f -print0 | xargs -0 truncate -s 0
 rm -f "$R"/usr/bin/qemu*
 rm -f "$R"/bkp-packages
 rm -rf "$R"/userland
@@ -573,7 +574,7 @@ ROOTSIZE=$((ROOTSIZE/1024/1000*5*1024/5))
 RAW_SIZE=$(($((FREE_SPACE*1024))+ROOTSIZE+$((BOOT_MB*1024))+4096))
 
 # Crea el disco y particionar
-fallocate -l $(echo ${RAW_SIZE}Ki | numfmt --from=iec-i --to=si) "${IMGNAME}"
+fallocate -l "$(echo ${RAW_SIZE}Ki | numfmt --from=iec-i --to=si)" "${IMGNAME}"
 parted -s "${IMGNAME}" mklabel msdos
 parted -s "${IMGNAME}" mkpart primary fat32 1MiB $((BOOT_MB+1))MiB
 parted -s -a minimal "${IMGNAME}" mkpart primary $((BOOT_MB+1))MiB 100%
@@ -624,7 +625,7 @@ if [[ "$COMPRESS" == "gzip" ]]; then
   gzip "${IMGNAME}"
   chmod 664 "${IMGNAME}.gz"
 elif [[ "$COMPRESS" == "xz" ]]; then
-  [ $(nproc) -lt 4 ] || CPU_CORES=4 # CPU_CORES = Número de núcleos a usar
+  [ "$(nproc)" -lt 4 ] || CPU_CORES=4 # CPU_CORES = Número de núcleos a usar
   xz -T "${CPU_CORES:-2}" "${IMGNAME}"
   chmod 664 "${IMGNAME}.xz"
 else
