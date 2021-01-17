@@ -41,7 +41,8 @@ PIOS_KEY="82B129927FA3303E"
 RASP_KEY="9165938D90FDDD2E"
 
 # Cargar configuración personalizada en la compilación.
-if [ -f ./config.txt ];then source ./config.txt;fi
+# shellcheck source=/dev/null
+if [ -f ./config.txt ]; then source ./config.txt; fi
 
 # Entorno de trabajo
 IMGNAME="${OS}-${RELEASE}-${VARIANT}-${ARCHITECTURE}.img"
@@ -60,14 +61,14 @@ if [ -e "$BASEDIR" ]; then
   echo "El directorio $BASEDIR existe, no se continuara"
   exit 1
 elif [[ $BASEDIR =~ [[:space:]] ]]; then
-  echo "El directorio "\"$BASEDIR"\" contiene espacios en blanco. No soportado."
+  echo "El directorio \"$BASEDIR\" contiene espacios en blanco. No soportado."
   exit 1
 else
-  mkdir -p $R
+  mkdir -p "$R"
 fi
 
 # Configuración de red
-if [[ ! $IPV4  || ! $NETMASK || ! $ROUTER || ! $DNS ]]; then
+if [[ ! $IPV4 || ! $NETMASK || ! $ROUTER || ! $DNS ]]; then
   NETWORK=dhcp
   DNS=${DNS:-8.8.8.8}
 else
@@ -76,14 +77,13 @@ fi
 
 # Función para instalar dependencias del script
 apt-get update
-APTOPTS="-q -y install --no-install-recommends -o APT::Install-Suggests=0 -o dpkg::options::=--force-confnew -o Acquire::Retries=3"
-installdeps(){
-for PKG in $DEPS; do
-  if [[ $(dpkg -l $PKG | awk '/^ii/ { print $1 }') != ii ]];
-  then
-    apt-get $APTOPTS $PKG;
-  fi
-done
+installdeps() {
+  for PKG in $DEPS; do
+    if [[ $(dpkg -l "$PKG" | awk '/^ii/ { print $1 }') != ii ]]; then
+      apt-get -q -y install --no-install-recommends -o APT::Install-Suggests=0 \
+      -o dpkg::options::=--force-confnew -o Acquire::Retries=3 "$PKG"
+    fi
+  done
 }
 
 # Instalar dependencias necesarias
@@ -92,7 +92,7 @@ systemd-container debootstrap eatmydata xz-utils kmod udev dbus gnupg gnupg-util
 installdeps
 
 # Checkear versión mínima debootstrap
-DEBOOTSTRAP_VER=$(debootstrap --version |  grep -o '[0-9.]\+' | head -1)
+DEBOOTSTRAP_VER=$(debootstrap --version | grep -o '[0-9.]\+' | head -1)
 if dpkg --compare-versions "$DEBOOTSTRAP_VER" lt "1.0.105"; then
   echo "Actualmente su versión de debootstrap no soporta el script" >&2
   echo "Actualice debootstrap, versión mínima 1.0.105" >&2
@@ -105,31 +105,38 @@ case ${ARCHITECTURE} in
     QEMUARCH="qemu-aarch64"
     QEMUBIN="/usr/bin/qemu-aarch64-static"
     LIB_ARCH="aarch64-linux-gnu"
-    CMAKE_ARM="-DARM64=ON" ;;
+    CMAKE_ARM="-DARM64=ON"
+    ;;
   armhf)
     QEMUARCH="qemu-arm"
     QEMUBIN="/usr/bin/qemu-arm-static"
     LIB_ARCH="arm-linux-gnueabihf"
-    CMAKE_ARM="-DARM64=OFF" ;;
+    CMAKE_ARM="-DARM64=OFF"
+    ;;
 esac
 
 # Detectar modulo binfmt_misc cargado en el kernel
 MODBINFMT=$(lsmod | grep binfmt_misc | awk '{print $1}')
-BINFMTS=$(< /proc/sys/fs/binfmt_misc/${QEMUARCH} awk '{if(NR==1) print $1}')
+BINFMTS=$(awk </proc/sys/fs/binfmt_misc/${QEMUARCH} '{if(NR==1) print $1}')
 if [ -z "${MODBINFMT}" ]; then
   modprobe binfmt_misc &>/dev/null
 elif [ "${BINFMTS}" == "disabled" ]; then
   update-binfmts --enable $QEMUARCH &>/dev/null
 fi
 
-# systemd-nspawn versión
+# Check systemd-nspawn versión
 NSPAWN_VER=$(systemd-nspawn --version | awk '{if(NR==1) print $2}')
+if [[ $NSPAWN_VER -ge 245 ]]; then
+  EXTRA_ARGS="--hostname=$HOST_NAME -q -P"
+elif [[ $NSPAWN_VER -ge 241 ]]; then
+  EXTRA_ARGS="--hostname=$HOST_NAME -q"
+else
+  EXTRA_ARGS="-q"
+fi
 # Entorno systemd-nspawn
-systemd-nspawn_exec(){
-  [[ $NSPAWN_VER -ge 241 ]] && EXTRA_ARGS="--hostname=$HOST_NAME" || true
-  [[ $NSPAWN_VER -ge 245 ]] && EXTRA_ARGS="--console=pipe --hostname=$HOST_NAME" || true
+systemd-nspawn_exec() {
   ENV="RUNLEVEL=1,LANG=C,DEBIAN_FRONTEND=noninteractive,DEBCONF_NOWARNINGS=yes"
-  systemd-nspawn -q --bind $QEMUBIN $EXTRA_ARGS --capability=cap_setfcap -E $ENV -M $MACHINE -D ${R} "$@"
+  systemd-nspawn --bind $QEMUBIN $EXTRA_ARGS --capability=cap_setfcap -E $ENV -M "$MACHINE" -D "${R}" "$@"
 }
 
 # Base debootstrap
@@ -149,25 +156,29 @@ if [[ "${OS}" == "debian" ]]; then
   # Seleccionar kernel y bootloader
   case ${OS}+${ARCHITECTURE} in
     debian*arm64)
-      KERNEL_IMAGE="linux-image-arm64/buster-backports raspi-firmware/buster-backports" ;;
+      KERNEL_IMAGE="linux-image-arm64/buster-backports raspi-firmware/buster-backports"
+      ;;
     debian*armhf)
-      KERNEL_IMAGE="linux-image-armmp/buster-backports raspi-firmware/buster-backports" ;;
+      KERNEL_IMAGE="linux-image-armmp/buster-backports raspi-firmware/buster-backports"
+      ;;
   esac
 elif [[ "${OS}" == "raspios" ]]; then
   BOOT="/boot"
   KERNEL_IMAGE="raspberrypi-kernel raspberrypi-bootloader"
   case ${OS}+${ARCHITECTURE} in
     raspios*arm64)
-    MIRROR=$PIOS_MIRROR
-    MIRROR_PIOS=$(echo ${MIRROR/raspbian./archive.}|sed 's/raspbian/debian/g')
-    KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
-    GPG_KEY=$PIOS_KEY
-    BOOTSTRAP_URL=$DEB_MIRROR;;
+      MIRROR=$PIOS_MIRROR
+      MIRROR_PIOS=${MIRROR/raspbian./archive.}
+      KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
+      GPG_KEY=$PIOS_KEY
+      BOOTSTRAP_URL=$DEB_MIRROR
+      ;;
     raspios*armhf)
-    MIRROR=$RASP_MIRROR
-    KEYRING=/usr/share/keyrings/raspbian-archive-keyring.gpg
-    GPG_KEY=$RASP_KEY
-    BOOTSTRAP_URL=$RASP_MIRROR;;
+      MIRROR=$RASP_MIRROR
+      KEYRING=/usr/share/keyrings/raspbian-archive-keyring.gpg
+      GPG_KEY=$RASP_KEY
+      BOOTSTRAP_URL=$RASP_MIRROR
+      ;;
   esac
 fi
 
@@ -175,15 +186,15 @@ fi
 if [ ! -f $KEYRING ]; then
   GNUPGHOME="$(mktemp -d)"
   export GNUPGHOME
-  gpg --keyring=$KEYRING --no-default-keyring --keyserver-options timeout=10 --keyserver $KEY_SRV --receive-keys $GPG_KEY
+  gpg --keyring=$KEYRING --no-default-keyring --keyserver-options timeout=10 --keyserver "$KEY_SRV" --receive-keys $GPG_KEY
   rm -rf "${GNUPGHOME}"
 fi
 
 # Habilitar proxy http first stage
-APT_CACHER=${APT_CACHER:-"$(lsof -i :3142|cut -d ' ' -f3|uniq|sed '/^\s*$/d')"}
+APT_CACHER=${APT_CACHER:-"$(lsof -i :3142 | cut -d ' ' -f3 | uniq | sed '/^\s*$/d')"}
 if [ -n "$PROXY_URL" ]; then
   export http_proxy=$PROXY_URL
-elif [ "$APT_CACHER" = "apt-cacher-ng" ] ; then
+elif [ "$APT_CACHER" = "apt-cacher-ng" ]; then
   if [ -z "$PROXY_URL" ]; then
     PROXY_URL=${PROXY_URL:-"http://127.0.0.1:3142/"}
     export http_proxy=$PROXY_URL
@@ -191,8 +202,8 @@ elif [ "$APT_CACHER" = "apt-cacher-ng" ] ; then
 fi
 
 # First stage
-eatmydata debootstrap --foreign --arch=${ARCHITECTURE} --components=${COMPONENTS// /,} \
---keyring=$KEYRING --variant - --include=${MINPKGS// /,} $RELEASE $R $BOOTSTRAP_URL
+eatmydata debootstrap --foreign --arch="${ARCHITECTURE}" --components="${COMPONENTS// /,}" \
+  --keyring=$KEYRING --variant - --include="${MINPKGS// /,}" "$RELEASE" "$R" $BOOTSTRAP_URL
 
 for archive in "$R"/var/cache/apt/archives/*eatmydata*.deb; do
   dpkg-deb --fsys-tarfile "$archive" >"$R"/eatmydata
@@ -202,7 +213,7 @@ done
 
 systemd-nspawn_exec dpkg-divert --divert /usr/bin/dpkg-eatmydata --rename --add /usr/bin/dpkg
 
-cat > $R/usr/bin/dpkg <<EOF
+cat >"$R"/usr/bin/dpkg <<EOF
 #!/bin/sh
 if [ -e /usr/lib/${LIB_ARCH}/libeatmydata.so ]; then
     [ -n "\${LD_PRELOAD}" ] && LD_PRELOAD="\$LD_PRELOAD:"
@@ -215,15 +226,16 @@ done
 export LD_PRELOAD
 exec "\$0-eatmydata" --force-unsafe-io "\$@"
 EOF
-chmod 755 $R/usr/bin/dpkg
+chmod 755 "$R"/usr/bin/dpkg
 
-if [[ "${VARIANT}" == "slim" ]]; then
-  cat > "$R"/etc/apt/apt.conf.d/99_norecommends <<EOF
+cat >"$R"/etc/apt/apt.conf.d/99_norecommends <<EOF
 APT::Install-Recommends "false";
 APT::AutoRemove::RecommendsImportant "false";
 APT::AutoRemove::SuggestsImportant "false";
 EOF
-  cat > "$R"/etc/dpkg/dpkg.cfg.d/01_no_doc_locale <<EOF
+
+if [[ "${VARIANT}" == "slim" ]]; then
+  cat >"$R"/etc/dpkg/dpkg.cfg.d/01_no_doc_locale <<EOF
 path-exclude /usr/lib/systemd/catalog/*
 path-exclude /usr/share/doc/*
 path-include /usr/share/doc/*/copyright
@@ -238,8 +250,8 @@ path-include /usr/share/locale/es*
 path-include /usr/share/locale/locale.alias
 EOF
 
-# Raspberry PI no tiene pci ni acpi
-  cat > "$R"/etc/dpkg/dpkg.cfg.d/02_no_pci_acpi <<EOF
+  # Raspberry PI no tiene pci ni acpi
+  cat >"$R"/etc/dpkg/dpkg.cfg.d/02_no_pci_acpi <<EOF
 path-exclude=/lib/udev/hwdb.d/20-pci*
 path-exclude=/lib/udev/hwdb.d/20-acpi*
 EOF
@@ -250,7 +262,7 @@ systemd-nspawn_exec eatmydata /debootstrap/debootstrap --second-stage
 
 # Definir sources.list
 if [ "$OS" = "debian" ]; then
-  echo "APT::Default-Release \"$RELEASE\";" > "$R"/etc/apt/apt.conf
+  echo "APT::Default-Release \"$RELEASE\";" >"$R"/etc/apt/apt.conf
   echo -e "\
   deb $MIRROR $RELEASE $COMPONENTS\n\
   #deb-src $MIRROR $RELEASE $COMPONENTS\n\
@@ -259,25 +271,25 @@ if [ "$OS" = "debian" ]; then
   deb $MIRROR $RELEASE-updates $COMPONENTS\n\
   #deb-src $MIRROR $RELEASE-updates $COMPONENTS\n\
   deb $MIRROR $RELEASE-backports $COMPONENTS\n\
-  " > $R/etc/apt/sources.list
+  " >"$R"/etc/apt/sources.list
 elif [ "$OS" = "raspios" ]; then
   if [ "$ARCHITECTURE" = "arm64" ]; then
-    echo "deb $DEB_MIRROR $RELEASE $COMPONENTS" >$R/etc/apt/sources.list
-    echo "#deb-src $DEB_MIRROR $RELEASE $COMPONENTS" >>$R/etc/apt/sources.list
-    echo "deb $MIRROR_PIOS $RELEASE main" >$R/etc/apt/sources.list.d/raspi.list
-    echo "#deb-src $MIRROR_PIOS $RELEASE main" >>$R/etc/apt/sources.list.d/raspi.list
+    echo "deb $DEB_MIRROR $RELEASE $COMPONENTS" >"$R"/etc/apt/sources.list
+    echo "#deb-src $DEB_MIRROR $RELEASE $COMPONENTS" >>"$R"/etc/apt/sources.list
+    echo "deb ${MIRROR_PIOS/raspbian/debian} $RELEASE main" >"$R"/etc/apt/sources.list.d/raspi.list
+    echo "#deb-src ${MIRROR_PIOS/raspbian/debian} $RELEASE main" >>"$R"/etc/apt/sources.list.d/raspi.list
   elif [ "$ARCHITECTURE" = "armhf" ]; then
-    echo "deb $MIRROR $RELEASE $COMPONENTS" >$R/etc/apt/sources.list
-    echo "#deb-src $MIRROR $RELEASE $COMPONENTS" >>$R/etc/apt/sources.list
-    MIRROR=$(echo ${PIOS_MIRROR/raspbian./archive.} | sed 's/raspbian/debian/g')
-    echo "deb $MIRROR $RELEASE main" >$R/etc/apt/sources.list.d/raspi.list
-    echo "#deb-src $MIRROR $RELEASE main" >>$R/etc/apt/sources.list.d/raspi.list
+    echo "deb $MIRROR $RELEASE $COMPONENTS" >"$R"/etc/apt/sources.list
+    echo "#deb-src $MIRROR $RELEASE $COMPONENTS" >>"$R"/etc/apt/sources.list
+    MIRROR=${PIOS_MIRROR/raspbian./archive.}
+    echo "deb ${MIRROR/raspbian/debian} $RELEASE main" >"$R"/etc/apt/sources.list.d/raspi.list
+    echo "#deb-src ${MIRROR/raspbian/debian} $RELEASE main" >>"$R"/etc/apt/sources.list.d/raspi.list
   fi
 fi
 
 # Instalar archive-keyring en PiOS
 if [ "$OS" = "raspios" ]; then
-  systemd-nspawn_exec << EOF
+  systemd-nspawn_exec <<EOF
   apt-key adv --keyserver-options timeout=10 --keyserver $KEY_SRV --recv-keys $PIOS_KEY
   apt-key adv --keyserver-options timeout=10 --keyserver $KEY_SRV --recv-keys $RASP_KEY
 EOF
@@ -285,11 +297,11 @@ fi
 
 # Habilitar apt proxy http en contenedor
 if [ -n "$PROXY_URL" ]; then
-	echo "Acquire::http { Proxy \"$PROXY_URL\" };" > "$R"/etc/apt/apt.conf.d/66proxy
+  echo "Acquire::http { Proxy \"$PROXY_URL\" };" >"$R"/etc/apt/apt.conf.d/66proxy
 fi
 
 # Script para generar las key de OpenSSH server
-cat > "$R"/etc/systemd/system/generate-ssh-host-keys.service <<EOM
+cat >"$R"/etc/systemd/system/generate-ssh-host-keys.service <<EOM
 [Unit]
 Description=OpenSSH server key generation
 ConditionPathExistsGlob=!/etc/ssh/ssh_host_*_key
@@ -303,7 +315,7 @@ RequiredBy=multi-user.target
 EOM
 
 # Scripts para redimensionar partición root
-cat > "$R"/etc/systemd/system/rpi-resizerootfs.service <<EOM
+cat >"$R"/etc/systemd/system/rpi-resizerootfs.service <<EOM
 [Unit]
 Description=resize root file system
 Before=local-fs-pre.target
@@ -319,7 +331,7 @@ ExecStart=/bin/systemctl --no-reload disable %n
 RequiredBy=local-fs-pre.target
 EOM
 
-cat > "$R"/usr/sbin/rpi-resizerootfs <<\EOM
+cat >"$R"/usr/sbin/rpi-resizerootfs <<\EOM
 #!/bin/sh
 DISKPART="$(findmnt -n -o SOURCE /)"
 DISKNAME="/dev/$(lsblk -no pkname "$DISKPART")"
@@ -337,7 +349,7 @@ EOM
 chmod -c 755 "$R"/usr/sbin/rpi-resizerootfs
 
 # Configuración de usuarios y grupos
-systemd-nspawn_exec << _EOF
+systemd-nspawn_exec <<_EOF
 echo "root:${ROOT_PASSWORD}" | chpasswd
 adduser --gecos pi --disabled-password pi
 echo "pi:${ROOT_PASSWORD}" | chpasswd
@@ -347,7 +359,22 @@ _EOF
 
 # Instalando kernel
 systemd-nspawn_exec eatmydata apt-get update
-systemd-nspawn_exec eatmydata apt-get $APTOPTS ${KERNEL_IMAGE}
+# shellcheck disable=SC2086
+systemd-nspawn_exec eatmydata apt-get install -y ${KERNEL_IMAGE}
+# Configuración firmware
+if [ "$OS" = raspios ]; then
+  cat <<-EOM >"${R}"${BOOT}/cmdline.txt
+  net.ifnames=0 dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootwait
+EOM
+if [ "$ARCHITECTURE" = "arm64" ]; then
+  echo "arm_64bit=1" >>"$R"/"${BOOT}"/config.txt
+fi
+elif [ "$OS" = debian ]; then
+  cat <<-EOM >"${R}"${BOOT}/cmdline.txt
+  net.ifnames=0 console=tty1 root=/dev/mmcblk0p2 rw  rootwait
+EOM
+fi
+echo "hdmi_force_hotplug=1" >>"$R"/"${BOOT}"/config.txt
 
 if [[ "${VARIANT}" == "slim" ]]; then
   INCLUDEPKGS="${EXTRAPKGS} ${WIRELESSPKGS} firmware-brcm80211"
@@ -357,7 +384,7 @@ elif [[ "${VARIANT}" == "full" ]]; then
   INCLUDEPKGS="${EXTRAPKGS} ${WIRELESSPKGS} ${BLUETOOTH} ${DESKTOP} ${FIRMWARES}"
 fi
 # Añadir paquetes extra a la compilación
-if [ ! -z "$ADDPKG" ]; then
+if [ -n "$ADDPKG" ]; then
   INCLUDEPKGS="${ADDPKG} ${INCLUDEPKGS}"
 fi
 
@@ -367,10 +394,11 @@ if [[ "${OS}" == "debian" ]]; then
 fi
 
 # Instalar paquetes extra
-systemd-nspawn_exec eatmydata apt-get $APTOPTS $INCLUDEPKGS
+# shellcheck disable=SC2086
+systemd-nspawn_exec eatmydata apt-get install -y $INCLUDEPKGS
 
 # Activar servicios generate-ssh-host-keys y rpi-resizerootfs
-echo | sed -e '/^#/d ; /^ *$/d' | systemd-nspawn_exec << \EOF
+echo | sed -e '/^#/d ; /^ *$/d' | systemd-nspawn_exec <<\EOF
 # Activar servicio redimendionado partición root
 systemctl enable rpi-resizerootfs.service
 # Activar servicio generación ket SSH
@@ -378,20 +406,20 @@ systemctl enable generate-ssh-host-keys.service
 EOF
 
 # Añadir nombre de host
-echo "$HOST_NAME" > "$R"/etc/hostname
+echo "$HOST_NAME" >"$R"/etc/hostname
 
 # Definir zona horaria
-systemd-nspawn_exec ln -nfs /usr/share/zoneinfo/$TIMEZONE /etc/localtime
+systemd-nspawn_exec ln -nfs /usr/share/zoneinfo/"$TIMEZONE" /etc/localtime
 systemd-nspawn_exec dpkg-reconfigure -fnoninteractive tzdata
 
 # Sin contraseña sudo en el usuario pi
-echo "pi ALL=(ALL) NOPASSWD:ALL" >> "$R"/etc/sudoers
+echo "pi ALL=(ALL) NOPASSWD:ALL" >>"$R"/etc/sudoers
 
 # Configurar locales
 sed -i "s/^# *\($LOCALES\)/\1/" "$R"/etc/locale.gen
 systemd-nspawn_exec locale-gen
-echo "LANG=$LOCALES" > "$R"/etc/locale.conf
-cat <<'EOM' >$R/etc/profile.d/default-lang.sh
+echo "LANG=$LOCALES" >"$R"/etc/locale.conf
+cat <<'EOM' >"$R"/etc/profile.d/default-lang.sh
 if [ -z "$LANG" ]; then
     source /etc/locale.conf
     export LANG
@@ -399,25 +427,10 @@ fi
 EOM
 
 # Habilitar SWAP
-echo 'vm.swappiness=25' >> "$R"/etc/sysctl.conf
-echo 'vm.vfs_cache_pressure=50' >> "$R"/etc/sysctl.conf
-systemd-nspawn_exec apt-get install -y dphys-swapfile > /dev/null 2>&1
+echo 'vm.swappiness=25' >>"$R"/etc/sysctl.conf
+echo 'vm.vfs_cache_pressure=50' >>"$R"/etc/sysctl.conf
+systemd-nspawn_exec apt-get install -y dphys-swapfile >/dev/null 2>&1
 sed -i "s/#CONF_SWAPSIZE=/CONF_SWAPSIZE=256/g" "$R"/etc/dphys-swapfile
-
-# Configuración firmware
-if [ $OS = raspios ]; then
-  cat <<EOM >${R}${BOOT}/cmdline.txt
-net.ifnames=0 dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootwait
-EOM
-  echo "hdmi_force_hotplug=1" >>"$R"/"${BOOT}"/config.txt
-  if [ "$ARCHITECTURE" = "arm64" ]; then
-    echo "arm_64bit=1" >>"$R"/"${BOOT}"/config.txt
-  fi
-else
-  sed -i 's/cma=64M/cma=0/' "$R"/boot/firmware/cmdline.txt
-  sed -i 's/#CMA=64M/CMA=0/' "$R"/etc/default/raspi-firmware
-  sed -i 's/#ROOTPART=/ROOTPART=/' "$R"/etc/default/raspi-firmware
-fi
 
 # Instalar f2fs-tools y modificar cmdline.txt
 if [ "$FSTYPE" = "f2fs" ]; then
@@ -430,14 +443,14 @@ elif [ "$FSTYPE" = "ext4" ]; then
 fi
 
 # Definiendo puntos de montaje
-cat > $R/etc/fstab <<EOM
+cat >"$R"/etc/fstab <<EOM
 proc            /proc           proc    defaults          0       0
 /dev/mmcblk0p2  /               $FSTYPE    $FSOPTS  0       1
 /dev/mmcblk0p1  $BOOT  vfat    defaults          0       2
 EOM
 
 # Crear archivo hosts
-cat > $R/etc/hosts <<EOM
+cat >"$R"/etc/hosts <<EOM
 127.0.1.1       ${HOST_NAME}
 127.0.0.1       localhost
 ::1             localhostnet.ifnames=0 ip6-localhost ip6-loopback
@@ -446,39 +459,41 @@ ff02::2         ip6-allrouters
 EOM
 
 # Preparar configuración de red
-cat <<EOF >$R/etc/network/interfaces
+cat <<EOF >"$R"/etc/network/interfaces
 source-directory /etc/network/interfaces.d
 
 auto lo
 iface lo inet loopback
 
-allow-hotplug eth0
-iface eth0 inet $NETWORK
-
 allow-hotplug wlan0
 iface wlan0 inet dhcp
 wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf
+
+allow-hotplug eth0
+iface eth0 inet $NETWORK
 EOF
 
-if [[ "$NETWORK" == "static" ]] ; then
-  echo "address $IPV4" >>$R/etc/network/interfaces
-  echo "netmask $NETMASK" >>$R/etc/network/interfaces
-  echo "gateway $ROUTER" >>$R/etc/network/interfaces
+if [[ "$NETWORK" == "static" ]]; then
+  {
+    echo "address $IPV4"
+    echo "netmask $NETMASK"
+    echo "gateway $ROUTER"
+  } >>"$R"/etc/network/interfaces
 fi
 
 # Configuración wireless
-cat <<EOF >$R/etc/wpa_supplicant/wpa_supplicant.conf
+cat <<EOF >"$R"/etc/wpa_supplicant/wpa_supplicant.conf
 ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
 update_config=1
 country=${WPA_COUNTRY:-"00"}
 EOF
 
-if [ ! -z "$WPA_ESSID" ] && [ ! -z "$WPA_PASSWORD" ] && [ ! "${#WPA_PASSWORD}" -lt "8" ]; then
-systemd-nspawn_exec <<\EOF
+if [ -n "$WPA_ESSID" ] && [ -n "$WPA_PASSWORD" ] && [ ! "${#WPA_PASSWORD}" -lt "8" ]; then
+  systemd-nspawn_exec <<\EOF
 wpa_passphrase ${WPA_ESSID} ${WPA_PASSWORD} | tee -a /etc/wpa_supplicant/wpa_supplicant.conf
 EOF
-elif [ ! -z "$WPA_ESSID" ]; then
-cat <<\EOM >>$R/etc/wpa_supplicant/wpa_supplicant.conf
+elif [ -n "$WPA_ESSID" ]; then
+  cat <<\EOM >>"$R"/etc/wpa_supplicant/wpa_supplicant.conf
 network={
 	ssid="${WPA_ESSID}"
 	key_mgmt=NONE
@@ -487,9 +502,9 @@ EOM
 fi
 
 # Raspberry PI userland tools
-if [[ "$OS" = "debian" && "$VARIANT" = "lite" ]]; then
-git clone https://github.com/raspberrypi/userland.git "$R"/userland
-cat <<EOF >$R/userland/compile.sh
+if [[ "$OS" == "debian" && "$VARIANT" == "lite" ]]; then
+  git clone https://github.com/raspberrypi/userland.git "$R"/userland
+  cat <<EOF >"$R"/userland/compile.sh
 #!/bin/bash -e
 dpkg --get-selections > /bkp-packages
 apt-get install -y cmake make g++ pkg-config git-core
@@ -512,11 +527,11 @@ dpkg --set-selections < /bkp-packages
 apt-get -y dselect-upgrade
 apt-get -y remove --purge \$(dpkg -l | grep "^rc" | awk '{print \$2}')
 EOF
-chmod +x "$R"/userland/compile.sh
-systemd-nspawn_exec /userland/compile.sh
+  chmod +x "$R"/userland/compile.sh
+  systemd-nspawn_exec /userland/compile.sh
 
-# Reglas udev Raspberry PI
-cat <<\EOF >$R/etc/udev/rules.d/55-rpi.rules
+  # Reglas udev Raspberry PI
+  cat <<\EOF >"$R"/etc/udev/rules.d/55-rpi.rules
 SUBSYSTEM=="vchiq",GROUP="video",MODE="0660"
 SUBSYSTEM=="vc-sm",GROUP="video",MODE="0660"
 SUBSYSTEM=="bcm2708_vcio",GROUP="video",MODE="0660"
@@ -532,7 +547,7 @@ SUBSYSTEM=="gpio*", PROGRAM="/bin/sh -c '\
     chown -R root:gpio /sys$devpath && chmod -R 770 /sys$devpath\
 '"
 EOF
-elif [[ "$OS" = "raspios" && "$VARIANT" = "lite" ]]; then
+elif [[ "$OS" == "raspios" && "$VARIANT" == "lite" ]]; then
   systemd-nspawn_exec apt-get install -y libraspberrypi-bin
 fi
 
@@ -549,16 +564,15 @@ rm -f "$R"/bkp-packages
 rm -rf "$R"/userland
 rm -rf "$R"/opt/vc/src
 if [[ "$VARIANT" == "slim" ]]; then
-  SLIM_PKGS="wget tasksel eatmydata libeatmydata1"
-  systemd-nspawn_exec apt-get -y remove --purge $SLIM_PKGS
+  systemd-nspawn_exec apt-get -y remove --purge wget tasksel eatmydata libeatmydata1
   find "$R"/usr/share/doc -depth -type f ! -name copyright -print0 | xargs -0 rm
   find "$R"/usr/share/doc -empty -print0 | xargs -0 rmdir
   rm -rf "$R"/usr/share/man/* "$R"/usr/share/info/*
   rm -rf "$R"/usr/share/lintian/*
-  rm -rf "$R"/etc/apt/apt.conf.d/99_norecommends
   rm -rf "$R"/etc/dpkg/dpkg.cfg.d/01_no_doc_locale
 fi
 echo "nameserver $DNS" >"$R"/etc/resolv.conf
+rm -rf "$R"/etc/apt/apt.conf.d/99_norecommends
 rm -rf "$R"/run/* "$R"/etc/*- "$R"/tmp/*
 rm -rf "$R"/var/lib/apt/lists/*
 rm -rf "$R"/var/cache/apt/archives/*
@@ -569,15 +583,15 @@ rm -rf "$R"/etc/ssh/ssh_host_*
 rm -rf "$R"/root/.bash_history
 
 # Calcule el espacio para crear la imagen.
-ROOTSIZE=$(du -s -B1 "$R" --exclude=${R}/boot | cut -f1)
-ROOTSIZE=$((ROOTSIZE/1024/1000*5*1024/5))
-RAW_SIZE=$(($((FREE_SPACE*1024))+ROOTSIZE+$((BOOT_MB*1024))+4096))
+ROOTSIZE=$(du -s -B1 "$R" --exclude="${R}"/boot | cut -f1)
+ROOTSIZE=$((ROOTSIZE * 5 * 1024 / 5 / 1000 / 1024))
+RAW_SIZE=$(($((FREE_SPACE * 1024)) + ROOTSIZE + $((BOOT_MB * 1024)) + 4096))
 
 # Crea el disco y particionar
 fallocate -l "$(echo ${RAW_SIZE}Ki | numfmt --from=iec-i --to=si)" "${IMGNAME}"
 parted -s "${IMGNAME}" mklabel msdos
-parted -s "${IMGNAME}" mkpart primary fat32 1MiB $((BOOT_MB+1))MiB
-parted -s -a minimal "${IMGNAME}" mkpart primary $((BOOT_MB+1))MiB 100%
+parted -s "${IMGNAME}" mkpart primary fat32 1MiB $((BOOT_MB + 1))MiB
+parted -s -a minimal "${IMGNAME}" mkpart primary $((BOOT_MB + 1))MiB 100%
 
 # Establecer las variables de partición
 LOOPDEVICE=$(losetup --show -fP "${IMGNAME}")
@@ -587,10 +601,11 @@ ROOT_LOOP="${LOOPDEVICE}p2"
 # Formatear particiones
 mkfs.vfat -n BOOT -F 32 -v "$BOOT_LOOP"
 if [[ $FSTYPE == f2fs ]]; then
-  mkfs.f2fs -f -l ROOTFS  "$ROOT_LOOP"
+  mkfs.f2fs -f -l ROOTFS "$ROOT_LOOP"
 elif [[ $FSTYPE == ext4 ]]; then
   FEATURES="-O ^64bit,^metadata_csum -E stride=2,stripe-width=1024 -b 4096"
-  mkfs $FEATURES -t $FSTYPE -L ROOTFS "$ROOT_LOOP"
+  # shellcheck disable=SC2086
+  mkfs $FEATURES -t "$FSTYPE" -L ROOTFS "$ROOT_LOOP"
 fi
 
 # Crear los directorios para las particiones y montarlas
