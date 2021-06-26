@@ -34,7 +34,7 @@ DEB_MIRROR="http://deb.debian.org/debian"
 PIOS_MIRROR="http://raspbian.raspberrypi.org/raspbian/"
 RASP_MIRROR="http://archive.raspbian.org/raspbian/"
 # Key server
-KEY_SRV=${KEY_SRV:-"keys.gnupg.net"}
+KEY_SRV=${KEY_SRV:-"keyserver.ubuntu.com"}
 # raspberrypi-archive-keyring
 PIOS_KEY="82B129927FA3303E"
 # raspbian-archive-keyring
