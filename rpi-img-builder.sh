@@ -581,6 +581,8 @@ rm -rf "$R"/var/cache/debconf/*-old
 rm -rf "$R"/var/lib/dpkg/*-old
 rm -rf "$R"/etc/ssh/ssh_host_*
 rm -rf "$R"/root/.bash_history
+rm -rf "$R"/etc/machine-id
+rm -rf "$R"/var/lib/dbus/machine-id
 
 # Calcule el espacio para crear la imagen.
 ROOTSIZE=$(du -s -B1 "$R" --exclude="${R}"/boot | cut -f1)
