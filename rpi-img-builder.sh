@@ -619,11 +619,12 @@ mount "$BOOT_LOOP" "$MOUNTDIR/$BOOT"
 
 # Rsyncing rootfs en archivo de imagen
 rsync -aHAXx --exclude boot "${R}/" "${MOUNTDIR}/"
-rsync -rtx "${R}/boot" "${MOUNTDIR}/"
+rsync -rtx "${R}/boot" "${MOUNTDIR}/" && sync
 
 # Desmontar sistema de archivos y eliminar compilación
-umount "$MOUNTDIR/$BOOT"
-umount "$MOUNTDIR"
+blockdev --flushbufs "${LOOPDEVICE}"
+umount -l "$MOUNTDIR/$BOOT"
+umount -l "$MOUNTDIR"
 rm -rf "$BASEDIR"
 
 # Chequear particiones
