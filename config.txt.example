@@ -1,0 +1,46 @@
+# Seleccionar diferentes sistemas operativos (debian/raspios).
+#OS="raspios"
+
+# Elegir entra las variantes lite y slim con el sistema mínimo.
+#VARIANT="slim"
+
+# Seleccionar arquitectura entre arm64 y armhf.
+#ARCHITECTURE="armhf"
+
+# Definir manualmente la configuración de red (eth0).
+#IPV4="192.168.10.100"
+#NETMASK="255.255.255.0"
+#ROUTER="192.168.10.1"
+#DNS="8.8.8.8"
+
+#Configuración de nuestra red wifi.
+#WPA_ESSID="tu red wifi"
+#WPA_PASSWORD="contraseña wifi"
+#WPA_COUNTRY="es" # Región para España
+
+# Comprimir imagen en formato gz o xz.
+#COMPRESS="xz"
+
+# Establecera la zona horaria.
+#TIMEZONE="Europe/London"
+
+# Establecera locale del sistema.
+#LOCALES="en_GB.UTF-8"
+
+# Establecer la contraseña a los usuarios root y pi.
+#ROOT_PASSWORD="tupassword"
+
+#Definir el nombre del host.
+#HOST_NAME="rpi4b"
+
+# Añadir paquetes a la compilación de la imagen.
+#ADDPKG="nano htop"
+
+# Cambiar el tamaño de la partición BOOT.
+#BOOT_MB="150"
+
+# Si desea utilizar un proxy externo.
+#PROXY_URL="http://external.proxy.loc:3142"
+
+# Descomentar para activar debug
+#debug="true"
