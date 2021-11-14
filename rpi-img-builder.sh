@@ -54,10 +54,8 @@ R="${BASEDIR}/build"
 if [[ $EUID -ne 0 ]]; then
   echo "Usar: sudo $0" 1>&2
   exit 1
-fi
-
 # Detecta antigua instalación
-if [ -e "$BASEDIR" ]; then
+elif [ -e "$BASEDIR" ]; then
   echo "El directorio $BASEDIR existe, no se continuara"
   exit 1
 elif [[ $BASEDIR =~ [[:space:]] ]]; then
@@ -67,8 +65,28 @@ else
   mkdir -p "$R"
 fi
 
-# Función para instalar dependencias del script
-apt-get update || apt-get update
+# Print color echo
+function log() {
+  local set_color="$2"
+  case $set_color in
+    red) color=$(tput setaf 1) ;;
+    green) color=$(tput setaf 2) ;;
+    yellow) color=$(tput setaf 3) ;;
+    gray) color=$(tput setaf 8) ;;
+    white) color=$(tput setaf 15) ;;
+    *) text="$1" ;;
+  esac
+  [ -z "$text" ] && echo -e "$color $1 $(tput sgr0)" || echo -e "$text"
+}
+
+# Show progress
+status() {
+  status_i=$((status_i+1))
+  echo -e "$(tput setaf 2) ✅ ${status_i}/${status_t}:$(tput sgr0) $1"
+}
+status_i=0
+status_t=$(($(grep '.*status ' $0 | wc -l) -1))
+
 installdeps() {
   for PKG in $DEPS; do
     if [[ $(dpkg -l "$PKG" | awk '/^ii/ { print $1 }') != ii ]]; then
@@ -78,7 +96,9 @@ installdeps() {
   done
 }
 
-# Instalar dependencias necesarias
+status " - Actualizando repositorio apt ..."
+apt-get update || apt-get update
+status " - Instando dependencias necesarias ..."
 DEPS="binfmt-support dosfstools qemu-user-static rsync wget lsof git parted dirmngr e2fsprogs \
 systemd-container debootstrap eatmydata xz-utils kmod udev dbus gnupg gnupg-utils debian-archive-keyring"
 installdeps
@@ -110,11 +130,8 @@ esac
 # Detectar modulo binfmt_misc cargado en el kernel
 MODBINFMT=$(lsmod | grep binfmt_misc | awk '{print $1}')
 BINFMTS=$(awk </proc/sys/fs/binfmt_misc/${QEMUARCH} '{if(NR==1) print $1}')
-if [ -z "${MODBINFMT}" ]; then
-  modprobe binfmt_misc &>/dev/null
-elif [ "${BINFMTS}" == "disabled" ]; then
-  update-binfmts --enable $QEMUARCH &>/dev/null
-fi
+[ -z "${MODBINFMT}" ] && modprobe binfmt_misc &>/dev/null
+[ "${BINFMTS}" == "disabled" ] && update-binfmts --enable $QEMUARCH &>/dev/null
 
 # Check systemd-nspawn versión
 NSPAWN_VER=$(systemd-nspawn --version | awk '{if(NR==1) print $2}')
@@ -183,17 +200,17 @@ if [ ! -f $KEYRING ]; then
 fi
 
 # Habilitar proxy http first stage
-APT_CACHER=${APT_CACHER:-"$(lsof -i :3142 | cut -d ' ' -f3 | uniq | sed '/^\s*$/d')"}
+APT_CACHER=$(lsof -i :3142 | cut -d ' ' -f3 | uniq | sed '/^\s*$/d')
 if [ -n "$PROXY_URL" ]; then
   export http_proxy=$PROXY_URL
-elif [ "$APT_CACHER" = "apt-cacher-ng" ]; then
+elif [[ "$APT_CACHER" =~ (apt-cacher-ng|root) ]]; then
   if [ -z "$PROXY_URL" ]; then
     PROXY_URL=${PROXY_URL:-"http://127.0.0.1:3142/"}
     export http_proxy=$PROXY_URL
   fi
 fi
 
-# First stage
+status "debootstrap first stage"
 eatmydata debootstrap --foreign --arch="${ARCHITECTURE}" --components="${COMPONENTS// /,}" \
   --keyring=$KEYRING --variant - --include="${MINPKGS// /,}" "$RELEASE" "$R" $BOOTSTRAP_URL
 
@@ -249,7 +266,7 @@ path-exclude=/lib/udev/hwdb.d/20-acpi*
 EOF
 fi
 
-# Second stage
+status "debootstrap second stage"
 systemd-nspawn_exec eatmydata /debootstrap/debootstrap --second-stage
 
 # Definir sources.list
@@ -340,7 +357,7 @@ resize2fs ${DISKPART}
 EOM
 chmod -c 755 "$R"/usr/sbin/rpi-resizerootfs
 
-# Configuración de usuarios y grupos
+status "Configuración de usuarios y grupos"
 systemd-nspawn_exec <<_EOF
 echo "root:${ROOT_PASSWORD}" | chpasswd
 adduser --gecos pi --disabled-password pi
@@ -349,8 +366,36 @@ echo spi i2c gpio | xargs -n 1 groupadd -r
 usermod -a -G adm,dialout,sudo,audio,video,plugdev,users,netdev,input,spi,gpio,i2c,sudo pi
 _EOF
 
-# Instalando kernel
+if [[ "${VARIANT}" == "slim" ]]; then
+  INCLUDEPKGS="${EXTRAPKGS} ${WIRELESSPKGS} firmware-brcm80211"
+elif [[ "${VARIANT}" == "lite" ]]; then
+  INCLUDEPKGS="${EXTRAPKGS} ${WIRELESSPKGS} ${BLUETOOTH}"
+elif [[ "${VARIANT}" == "full" ]]; then
+  INCLUDEPKGS="${EXTRAPKGS} ${WIRELESSPKGS} ${BLUETOOTH} ${DESKTOP}"
+fi
+# Añadir paquetes extra a la compilación
+if [ -n "$ADDPKG" ]; then
+  INCLUDEPKGS="${ADDPKG} ${INCLUDEPKGS}"
+fi
+
+# Usar firmware-brcm80211/buster-backports en Debian
+if [[ "${OS}" == "debian" ]]; then
+  FIRMWARES="${FIRMWARES}/buster-backports"
+fi
+
+#git clone https://github.com/lwfinger/rtw88.git
+#cd rtw88
+#make
+#make install
+#cd ..
 systemd-nspawn_exec eatmydata apt-get update
+systemd-nspawn_exec eatmydata apt-get install -y ${FIRMWARES}
+
+# Disable suspend/resume - speeds up boot massively
+mkdir -p "${R}/etc/initramfs-tools/conf.d/"
+echo "RESUME=none" > "${R}/etc/initramfs-tools/conf.d/resume"
+
+# Instalando kernel
 # shellcheck disable=SC2086
 systemd-nspawn_exec eatmydata apt-get install -y ${KERNEL_IMAGE}
 # Configuración firmware
@@ -368,45 +413,28 @@ EOM
 fi
 echo "hdmi_force_hotplug=1" >>"$R"/"${BOOT}"/config.txt
 
-if [[ "${VARIANT}" == "slim" ]]; then
-  INCLUDEPKGS="${EXTRAPKGS} ${WIRELESSPKGS} firmware-brcm80211"
-elif [[ "${VARIANT}" == "lite" ]]; then
-  INCLUDEPKGS="${EXTRAPKGS} ${WIRELESSPKGS} ${BLUETOOTH} ${FIRMWARES}"
-elif [[ "${VARIANT}" == "full" ]]; then
-  INCLUDEPKGS="${EXTRAPKGS} ${WIRELESSPKGS} ${BLUETOOTH} ${DESKTOP} ${FIRMWARES}"
-fi
-# Añadir paquetes extra a la compilación
-if [ -n "$ADDPKG" ]; then
-  INCLUDEPKGS="${ADDPKG} ${INCLUDEPKGS}"
-fi
-
-# Usar firmware-brcm80211/buster-backports en Debian
-if [[ "${OS}" == "debian" ]]; then
-  INCLUDEPKGS="${INCLUDEPKGS}/buster-backports"
-fi
-
-# Instalar paquetes extra
+status "Instalar paquetes base"
 # shellcheck disable=SC2086
 systemd-nspawn_exec eatmydata apt-get install -y $INCLUDEPKGS
-# Activar servicios generate-ssh-host-keys y rpi-resizerootfs
+status "Activar servicios generate-ssh-host-keys y rpi-resizerootfs"
 #echo | sed -e '/^#/d ; /^ *$/d' | systemd-nspawn_exec <<\EOF
-# Activar servicio redimendionado partición root
+status "Activar servicio redimendionado partición root"
 systemd-nspawn_exec systemctl enable rpi-resizerootfs.service
-# Activar servicio generación ket SSH
+status "ctivar servicio generación ket SSH"
 systemd-nspawn_exec systemctl enable generate-ssh-host-keys.service
 #EOF
 
 # Añadir nombre de host
 echo "$HOST_NAME" >"$R"/etc/hostname
 
-# Definir zona horaria
+status "Definir zona horaria"
 systemd-nspawn_exec ln -nfs /usr/share/zoneinfo/"$TIMEZONE" /etc/localtime
 systemd-nspawn_exec dpkg-reconfigure -fnoninteractive tzdata
 
 # Sin contraseña sudo en el usuario pi
 echo "pi ALL=(ALL) NOPASSWD:ALL" >>"$R"/etc/sudoers
 
-# Configurar locales
+status "Configurar locales"
 sed -i "s/^# *\($LOCALES\)/\1/" "$R"/etc/locale.gen
 systemd-nspawn_exec locale-gen
 echo "LANG=$LOCALES" >"$R"/etc/locale.conf
@@ -502,7 +530,7 @@ fi
 
 # Raspberry PI userland tools
 if [[ "$OS" == "debian" && "$VARIANT" == "lite" ]]; then
-  git clone https://github.com/raspberrypi/userland.git "$R"/userland
+  git clone --depth 1 https://github.com/raspberrypi/userland.git "$R"/userland
   cat <<EOF >"$R"/userland/compile.sh
 #!/bin/bash -e
 dpkg --get-selections > /bkp-packages
@@ -588,7 +616,7 @@ ROOTSIZE=$(du -s -B1 "$R" --exclude="${R}"/boot | cut -f1)
 ROOTSIZE=$((ROOTSIZE * 5 * 1024 / 5 / 1000 / 1024))
 RAW_SIZE=$(($((FREE_SPACE * 1024)) + ROOTSIZE + $((BOOT_MB * 1024)) + 4096))
 
-# Crea el disco y particionar
+status "Crea el disco y particionar"
 fallocate -l "$(echo ${RAW_SIZE}Ki | numfmt --from=iec-i --to=si)" "${IMGNAME}"
 parted -s "${IMGNAME}" mklabel msdos
 parted -s "${IMGNAME}" mkpart primary fat32 1MiB $((BOOT_MB + 1))MiB
@@ -599,7 +627,7 @@ LOOPDEVICE=$(losetup --show -fP "${IMGNAME}")
 BOOT_LOOP="${LOOPDEVICE}p1"
 ROOT_LOOP="${LOOPDEVICE}p2"
 
-# Formatear particiones
+status "Formatear particiones"
 mkfs.vfat -n BOOT -F 32 -v "$BOOT_LOOP"
 if [[ $FSTYPE == f2fs ]]; then
   mkfs.f2fs -f -l ROOTFS "$ROOT_LOOP"
@@ -616,7 +644,7 @@ mount "$ROOT_LOOP" "$MOUNTDIR"
 mkdir -p "$MOUNTDIR/$BOOT"
 mount "$BOOT_LOOP" "$MOUNTDIR/$BOOT"
 
-# Rsyncing rootfs en archivo de imagen
+status "Rsyncing rootfs en archivo de imagen"
 rsync -aHAXx --exclude boot "${R}/" "${MOUNTDIR}/"
 rsync -rtx "${R}/boot" "${MOUNTDIR}/" && sync
 
@@ -626,7 +654,7 @@ umount -l "$MOUNTDIR/$BOOT"
 umount -l "$MOUNTDIR"
 rm -rf "$BASEDIR"
 
-# Chequear particiones
+status "Chequear particiones"
 dosfsck -w -r -l -a -t "$BOOT_LOOP"
 if [[ "$FSTYPE" == "f2fs" ]]; then
   fsck.f2fs -y -f "$ROOT_LOOP"
@@ -637,7 +665,7 @@ fi
 # Eliminar dispositivos loop
 losetup -d "${LOOPDEVICE}"
 
-# Comprimir imagen
+status "Comprimir imagen"
 if [[ "$COMPRESS" == "gzip" ]]; then
   gzip "${IMGNAME}"
   chmod 664 "${IMGNAME}.gz"
