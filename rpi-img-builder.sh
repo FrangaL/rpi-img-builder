@@ -67,16 +67,8 @@ else
   mkdir -p "$R"
 fi
 
-# Configuración de red
-if [[ ! $IPV4 || ! $NETMASK || ! $ROUTER || ! $DNS ]]; then
-  NETWORK=dhcp
-  DNS=${DNS:-8.8.8.8}
-else
-  NETWORK=static
-fi
-
 # Función para instalar dependencias del script
-apt-get update
+apt-get update || apt-get update
 installdeps() {
   for PKG in $DEPS; do
     if [[ $(dpkg -l "$PKG" | awk '/^ii/ { print $1 }') != ii ]]; then
@@ -396,14 +388,13 @@ fi
 # Instalar paquetes extra
 # shellcheck disable=SC2086
 systemd-nspawn_exec eatmydata apt-get install -y $INCLUDEPKGS
-
 # Activar servicios generate-ssh-host-keys y rpi-resizerootfs
-echo | sed -e '/^#/d ; /^ *$/d' | systemd-nspawn_exec <<\EOF
+#echo | sed -e '/^#/d ; /^ *$/d' | systemd-nspawn_exec <<\EOF
 # Activar servicio redimendionado partición root
-systemctl enable rpi-resizerootfs.service
+systemd-nspawn_exec systemctl enable rpi-resizerootfs.service
 # Activar servicio generación ket SSH
-systemctl enable generate-ssh-host-keys.service
-EOF
+systemd-nspawn_exec systemctl enable generate-ssh-host-keys.service
+#EOF
 
 # Añadir nombre de host
 echo "$HOST_NAME" >"$R"/etc/hostname
@@ -457,6 +448,14 @@ cat >"$R"/etc/hosts <<EOM
 ff02::1         ip6-allnodes
 ff02::2         ip6-allrouters
 EOM
+
+# Configuración de red
+if [[ ! $IPV4 || ! $NETMASK || ! $ROUTER || ! $DNS ]]; then
+  NETWORK=dhcp
+  DNS=${DNS:-8.8.8.8}
+else
+  NETWORK=static
+fi
 
 # Preparar configuración de red
 cat <<EOF >"$R"/etc/network/interfaces
