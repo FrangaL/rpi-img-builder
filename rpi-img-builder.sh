@@ -87,6 +87,19 @@ status() {
 status_i=0
 status_t=$(($(grep '.*status ' $0 | wc -l) -1))
 
+# Calculate total time compilation.
+total_time() {
+  local T=$1
+  local H=$((T/60/60%24))
+  local M=$((T/60%60))
+  local S=$((T%60))
+  printf '\nTiempo final: '
+  [[ $H -gt 0 ]] && printf '%d hours ' $H
+  [[ $M -gt 0 ]] && printf '%d minutes ' $M
+  [[ $D -gt 0 || $H -gt 0 || $M -gt 0 ]] && printf 'and '
+  printf '%d seconds\n' $S
+}
+
 installdeps() {
   for PKG in $DEPS; do
     if [[ $(dpkg -l "$PKG" | awk '/^ii/ { print $1 }') != ii ]]; then
@@ -676,3 +689,5 @@ elif [[ "$COMPRESS" == "xz" ]]; then
 else
   chmod 664 "${IMGNAME}"
 fi
+# Tiempo total compilación
+total_time $SECONDS
