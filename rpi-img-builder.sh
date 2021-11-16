@@ -662,13 +662,15 @@ rsync -aHAXx --exclude boot "${R}/" "${MOUNTDIR}/"
 rsync -rtx "${R}/boot" "${MOUNTDIR}/" && sync
 
 # Desmontar sistema de archivos y eliminar compilación
-blockdev --flushbufs "${LOOPDEVICE}"
+
 umount -l "$MOUNTDIR/$BOOT"
 umount -l "$MOUNTDIR"
 rm -rf "$BASEDIR"
 
 status "Chequear particiones"
+log "Check filesystem boot partition type vfat" white
 dosfsck -w -r -l -a -t "$BOOT_LOOP"
+log "Check filesystem root partition type $FSTYPE" white
 if [[ "$FSTYPE" == "f2fs" ]]; then
   fsck.f2fs -y -f "$ROOT_LOOP"
 elif [[ "$FSTYPE" == "ext4" ]]; then
@@ -676,9 +678,10 @@ elif [[ "$FSTYPE" == "ext4" ]]; then
 fi
 
 # Eliminar dispositivos loop
+blockdev --flushbufs "${LOOPDEVICE}"
 losetup -d "${LOOPDEVICE}"
 
-status "Comprimir imagen"
+[[ "$COMPRESS" =~ (gzip|xz) ]] && log "Comprimir imagen" white
 if [[ "$COMPRESS" == "gzip" ]]; then
   gzip "${IMGNAME}"
   chmod 664 "${IMGNAME}.gz"
@@ -686,8 +689,12 @@ elif [[ "$COMPRESS" == "xz" ]]; then
   [ "$(nproc)" -lt 4 ] || CPU_CORES=4 # CPU_CORES = Número de núcleos a usar
   xz -T "${CPU_CORES:-2}" "${IMGNAME}"
   chmod 664 "${IMGNAME}.xz"
+  IMGNAME="${IMGNAME}.xz"
 else
   chmod 664 "${IMGNAME}"
 fi
 # Tiempo total compilación
 total_time $SECONDS
+# Quit
+log "\n Your image is: $(tput sgr0) $IMGNAME (Size: $(du -h $IMGNAME | cut -f1))" white
+exit 0
