@@ -357,7 +357,8 @@ cat >"$R"/usr/sbin/rpi-resizerootfs <<\EOM
 #!/bin/sh
 DISKPART="$(findmnt -n -o SOURCE /)"
 DISKNAME="/dev/$(lsblk -no pkname "$DISKPART")"
-flock ${DISKNAME} sfdisk -f ${DISKNAME} -N ${DISKPART##*[!0-9]} <<EOF
+DISKNAMENR="$(blkid -sPART_ENTRY_NUMBER -o value -p $DISKNAME)"
+flock ${DISKNAME} sfdisk -f ${DISKNAME} -N $DISKNAMENR <<EOF
 ,+
 EOF
 
@@ -396,11 +397,6 @@ if [[ "${OS}" == "debian" ]]; then
   FIRMWARES="${FIRMWARES}/buster-backports"
 fi
 
-#git clone https://github.com/lwfinger/rtw88.git
-#cd rtw88
-#make
-#make install
-#cd ..
 systemd-nspawn_exec eatmydata apt-get update
 systemd-nspawn_exec eatmydata apt-get install -y ${FIRMWARES}
 
