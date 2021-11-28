@@ -69,20 +69,20 @@ fi
 function log() {
   local set_color="$2"
   case $set_color in
-    red) color=$(tput setaf 1) ;;
-    green) color=$(tput setaf 2) ;;
-    yellow) color=$(tput setaf 3) ;;
-    gray) color=$(tput setaf 8) ;;
-    white) color=$(tput setaf 15) ;;
+    red) color='\e[31m' ;;
+    green) color='\e[32m' ;;
+    yellow) color='\e[33m' ;;
+    gray) color='\e[38m' ;;
+    white) color='\e[37m' ;;
     *) text="$1" ;;
   esac
-  [ -z "$text" ] && echo -e "$color $1 $(tput sgr0)" || echo -e "$text"
+  [ -z "$text" ] && echo -e "$color $1 \033[0m" || echo -e "$text"
 }
 
 # Show progress
 status() {
   status_i=$((status_i+1))
-  echo -e "$(tput setaf 2) ✅ ${status_i}/${status_t}:$(tput sgr0) $1"
+  echo -e "\e[32m ✅ ${status_i}/${status_t}:\033[0m $1"
 }
 status_i=0
 status_t=$(($(grep '.*status ' $0 | wc -l) -1))
@@ -692,5 +692,5 @@ fi
 # Tiempo total compilación
 total_time $SECONDS
 # Quit
-log "\n Your image is: $(tput sgr0) $IMGNAME (Size: $(du -h $IMGNAME | cut -f1))" white
+log "\n Your image is: \033[0m $IMGNAME (Size: $(du -h $IMGNAME | cut -f1))" white
 exit 0
