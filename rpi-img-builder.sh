@@ -109,9 +109,9 @@ installdeps() {
   done
 }
 
-status " - Actualizando repositorio apt ..."
+status "Actualizando repositorio apt ..."
 apt-get update || apt-get update
-status " - Instando dependencias necesarias ..."
+status "Instando dependencias necesarias ..."
 DEPS="binfmt-support dosfstools qemu-user-static rsync wget lsof git parted dirmngr e2fsprogs \
 systemd-container debootstrap eatmydata xz-utils kmod udev dbus gnupg gnupg-utils debian-archive-keyring"
 installdeps
@@ -429,7 +429,7 @@ status "Activar servicios generate-ssh-host-keys y rpi-resizerootfs"
 #echo | sed -e '/^#/d ; /^ *$/d' | systemd-nspawn_exec <<\EOF
 status "Activar servicio redimendionado partición root"
 systemd-nspawn_exec systemctl enable rpi-resizerootfs.service
-status "ctivar servicio generación ket SSH"
+status "Activar servicio generación ket SSH"
 systemd-nspawn_exec systemctl enable generate-ssh-host-keys.service
 #EOF
 
@@ -677,7 +677,7 @@ fi
 blockdev --flushbufs "${LOOPDEVICE}"
 losetup -d "${LOOPDEVICE}"
 
-[[ "$COMPRESS" =~ (gzip|xz) ]] && log "Comprimir imagen" white
+[[ "$COMPRESS" =~ (gzip|xz) ]] && log "Comprimiendo imagen ..." white
 if [[ "$COMPRESS" == "gzip" ]]; then
   gzip "${IMGNAME}"
   chmod 664 "${IMGNAME}.gz"
