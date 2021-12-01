@@ -606,6 +606,12 @@ if [[ "$VARIANT" == "slim" ]]; then
   rm -rf "$R"/usr/share/lintian/*
   rm -rf "$R"/etc/dpkg/dpkg.cfg.d/01_no_doc_locale
 fi
+# Crear manifiesto
+if [[ "$MANIFEST" == "true" ]]; then
+  systemd-nspawn_exec sh -c "dpkg-query -f '\${Package} \${Version}\n' -W > /${IMGNAME}.manifest"
+  cp $R/$IMGNAME.manifest $IMGNAME.manifest
+  rm -f $R/$IMGNAME.manifest
+fi
 echo "nameserver $DNS" >"$R"/etc/resolv.conf
 rm -rf "$R"/etc/apt/apt.conf.d/99_norecommends
 rm -rf "$R"/run/* "$R"/etc/*- "$R"/tmp/*
@@ -657,7 +663,6 @@ rsync -aHAXx --exclude boot "${R}/" "${MOUNTDIR}/"
 rsync -rtx "${R}/boot" "${MOUNTDIR}/" && sync
 
 # Desmontar sistema de archivos y eliminar compilación
-
 umount -l "$MOUNTDIR/$BOOT"
 umount -l "$MOUNTDIR"
 rm -rf "$BASEDIR"
