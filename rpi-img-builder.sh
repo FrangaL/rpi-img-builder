@@ -521,7 +521,7 @@ if [[ "$OS" == "debian" && "$VARIANT" == "lite" ]]; then
   installdeps
   mkdir -p "$CURRENT_DIR"/userland/build
   pushd "$CURRENT_DIR"/userland/build
-  cmake -DCMAKE_TOOLCHAIN_FILE="makefiles/cmake/toolchains/"${LIB_ARCH}".cmake" \
+  cmake -DCMAKE_TOOLCHAIN_FILE="makefiles/cmake/toolchains/${LIB_ARCH}.cmake" \
   -DCMAKE_BUILD_TYPE=release -DALL_APPS=OFF "$CMAKE_ARM" ../
   make -j$(nproc) 2>/dev/null
   mkdir -p "$R"/opt/vc
