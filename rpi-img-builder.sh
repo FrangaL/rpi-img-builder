@@ -113,7 +113,7 @@ status "Actualizando repositorio apt ..."
 apt-get update || apt-get update
 status "Instando dependencias necesarias ..."
 DEPS="binfmt-support dosfstools qemu-user-static rsync wget lsof git parted dirmngr e2fsprogs \
-systemd-container debootstrap eatmydata xz-utils kmod udev dbus gnupg gnupg-utils debian-archive-keyring"
+systemd-container debootstrap xz-utils kmod udev dbus gnupg gnupg-utils debian-archive-keyring"
 installdeps
 
 # Checkear versión mínima debootstrap
@@ -162,7 +162,7 @@ systemd-nspawn_exec() {
 
 # Base debootstrap
 COMPONENTS="main contrib non-free"
-MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron eatmydata wget gnupg"
+MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron wget gnupg"
 EXTRAPKGS="openssh-server parted locales dosfstools sudo libterm-readline-gnu-perl"
 FIRMWARES="firmware-misc-nonfree firmware-atheros firmware-realtek firmware-libertas firmware-brcm80211"
 WIRELESSPKGS="wpasupplicant crda wireless-tools rfkill wireless-regdb"
@@ -223,31 +223,8 @@ elif [[ "$APT_CACHER" =~ (apt-cacher-ng|root) ]]; then
 fi
 
 status "debootstrap first stage"
-eatmydata debootstrap --foreign --arch="${ARCHITECTURE}" --components="${COMPONENTS// /,}" \
+debootstrap --foreign --arch="${ARCHITECTURE}" --components="${COMPONENTS// /,}" \
   --keyring=$KEYRING --variant - --include="${MINPKGS// /,}" "$RELEASE" "$R" $BOOTSTRAP_URL
-
-for archive in "$R"/var/cache/apt/archives/*eatmydata*.deb; do
-  dpkg-deb --fsys-tarfile "$archive" >"$R"/eatmydata
-  tar -xkf "$R"/eatmydata -C "$R"
-  rm -f "$R"/eatmydata
-done
-
-systemd-nspawn_exec dpkg-divert --divert /usr/bin/dpkg-eatmydata --rename --add /usr/bin/dpkg
-
-cat >"$R"/usr/bin/dpkg <<EOF
-#!/bin/sh
-if [ -e /usr/lib/${LIB_ARCH}/libeatmydata.so ]; then
-    [ -n "\${LD_PRELOAD}" ] && LD_PRELOAD="\$LD_PRELOAD:"
-    LD_PRELOAD="\$LD_PRELOAD\$so"
-fi
-for so in /usr/lib/${LIB_ARCH}/libeatmydata.so; do
-    [ -n "\$LD_PRELOAD" ] && LD_PRELOAD="\$LD_PRELOAD:"
-    LD_PRELOAD="\$LD_PRELOAD\$so"
-done
-export LD_PRELOAD
-exec "\$0-eatmydata" --force-unsafe-io "\$@"
-EOF
-chmod 755 "$R"/usr/bin/dpkg
 
 cat >"$R"/etc/apt/apt.conf.d/99_norecommends <<EOF
 APT::Install-Recommends "false";
@@ -279,7 +256,7 @@ EOF
 fi
 
 status "debootstrap second stage"
-systemd-nspawn_exec eatmydata /debootstrap/debootstrap --second-stage
+systemd-nspawn_exec /debootstrap/debootstrap --second-stage
 
 # Definir sources.list
 if [ "$OS" = "debian" ]; then
@@ -396,8 +373,8 @@ if [[ "${OS}" == "debian" ]]; then
   FIRMWARES="${FIRMWARES}/buster-backports"
 fi
 
-systemd-nspawn_exec eatmydata apt-get update
-systemd-nspawn_exec eatmydata apt-get install -y ${FIRMWARES}
+systemd-nspawn_exec apt-get update
+systemd-nspawn_exec apt-get install -y ${FIRMWARES}
 
 # Disable suspend/resume - speeds up boot massively
 mkdir -p "${R}/etc/initramfs-tools/conf.d/"
@@ -405,7 +382,7 @@ echo "RESUME=none" > "${R}/etc/initramfs-tools/conf.d/resume"
 
 # Instalando kernel
 # shellcheck disable=SC2086
-systemd-nspawn_exec eatmydata apt-get install -y ${KERNEL_IMAGE}
+systemd-nspawn_exec apt-get install -y ${KERNEL_IMAGE}
 # Configuración firmware
 if [ "$OS" = raspios ]; then
   cat <<-EOM >"${R}"${BOOT}/cmdline.txt
@@ -423,7 +400,7 @@ echo "hdmi_force_hotplug=1" >>"$R"/"${BOOT}"/config.txt
 
 status "Instalar paquetes base"
 # shellcheck disable=SC2086
-systemd-nspawn_exec eatmydata apt-get install -y $INCLUDEPKGS
+systemd-nspawn_exec apt-get install -y $INCLUDEPKGS
 status "Activar servicios generate-ssh-host-keys y rpi-resizerootfs"
 #echo | sed -e '/^#/d ; /^ *$/d' | systemd-nspawn_exec <<\EOF
 status "Activar servicio redimendionado partición root"
@@ -586,7 +563,7 @@ find "$R"/var/log -depth -type f -print0 | xargs -0 truncate -s 0
 rm -f "$R"/usr/bin/qemu*
 rm -rf userland
 if [[ "$VARIANT" == "slim" ]]; then
-  systemd-nspawn_exec apt-get -y remove --purge wget tasksel eatmydata libeatmydata1
+  systemd-nspawn_exec apt-get -y remove --purge wget tasksel
   find "$R"/usr/share/doc -depth -type f ! -name copyright -print0 | xargs -0 rm
   find "$R"/usr/share/doc -empty -print0 | xargs -0 rmdir
   rm -rf "$R"/usr/share/man/* "$R"/usr/share/info/*
