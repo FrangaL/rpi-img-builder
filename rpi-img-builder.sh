@@ -117,8 +117,7 @@ systemd-container debootstrap xz-utils kmod udev dbus gnupg gnupg-utils debian-a
 installdeps
 
 # Checkear versión mínima debootstrap
-DEBOOTSTRAP_VER=$(debootstrap --version | grep -o '[0-9.]\+' | head -1)
-if dpkg --compare-versions "$DEBOOTSTRAP_VER" lt "1.0.105"; then
+if dpkg --compare-versions "$(dpkg-query -f '${Version}' -W debootstrap)" lt "1.0.105"; then
   echo "Actualmente su versión de debootstrap no soporta el script" >&2
   echo "Actualice debootstrap, versión mínima 1.0.105" >&2
   exit 1
