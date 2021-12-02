@@ -1,0 +1,34 @@
+name: rpi image builder
+on:
+  push:
+    tags:
+      - 'v*'
+jobs:
+  make-image:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        DISTRO: ["debian", "raspios"]
+        SUITE: ["buster"]
+        ARCH: ["arm64", "armhf"]
+        VARIANT: ["slim", "lite"]
+    name: rpi-builder
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build images
+        run: |
+              echo "OS=${{ matrix.DISTRO }}" > config.txt
+              echo "ARCHITECTURE=${{ matrix.ARCH }}" >> config.txt
+              echo "RELEASE=${{ matrix.SUITE }}" >> config.txt
+              echo "VARIANT=${{ matrix.VARIANT }}" >> config.txt
+              echo "COMPRESS=xz" >> config.txt
+              echo "MANIFEST=true" >> config.txt
+              sudo ./rpi-img-builder.sh
+              sha256sum ${{ matrix.DISTRO }}-${{ matrix.SUITE }}-${{ matrix.VARIANT }}-${{ matrix.ARCH }}.img.xz \
+                > ${{ matrix.DISTRO }}-${{ matrix.SUITE }}-${{ matrix.VARIANT }}-${{ matrix.ARCH }}.img.sha256
+      - name: Publish Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ steps.vars.outputs.tag }}
+          draft: false
+          files: ${{ matrix.DISTRO }}-${{ matrix.SUITE }}-${{ matrix.VARIANT }}-${{ matrix.ARCH }}.img.*
