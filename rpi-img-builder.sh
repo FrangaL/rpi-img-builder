@@ -650,8 +650,7 @@ if [[ "$COMPRESS" == "gzip" ]]; then
   gzip "${IMGNAME}"
   chmod 664 "${IMGNAME}.gz"
 elif [[ "$COMPRESS" == "xz" ]]; then
-  [ "$(nproc)" -lt 4 ] || CPU_CORES=4 # CPU_CORES = Número de núcleos a usar
-  xz -T "${CPU_CORES:-2}" "${IMGNAME}"
+  xz -T "$(nproc)" "${IMGNAME}"
   chmod 664 "${IMGNAME}.xz"
   IMGNAME="${IMGNAME}.xz"
 else
