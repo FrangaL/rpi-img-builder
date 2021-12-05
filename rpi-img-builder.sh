@@ -363,6 +363,8 @@ if [[ "${OS}-${RELEASE}" == "debian-buster" ]]; then
   KERNEL_IMAGE="${KERNEL_IMAGE}/buster-backports"
   RASPI_FIRMWARE="${RASPI_FIRMWARE}/buster-backports"
   KERNEL_IMAGE="$KERNEL_IMAGE $RASPI_FIRMWARE"
+elif [[ "${OS}-${RELEASE}" == "debian-bullseye" ]]; then
+  KERNEL_IMAGE="$KERNEL_IMAGE $RASPI_FIRMWARE"
 fi
 
 systemd-nspawn_exec apt-get update
