@@ -615,12 +615,12 @@ elif [[ $FSTYPE == ext4 ]]; then
   mkfs $FEATURES -t "$FSTYPE" -L ROOTFS "$ROOT_LOOP"
 fi
 
-# Crear los directorios para las particiones y montarlas
+status "Crear los directorios para las particiones y montarlas"
 MOUNTDIR="$BUILDDIR/mount"
-mkdir -p "$MOUNTDIR"
-mount "$ROOT_LOOP" "$MOUNTDIR"
-mkdir -p "$MOUNTDIR/$BOOT"
-mount "$BOOT_LOOP" "$MOUNTDIR/$BOOT"
+mkdir -v -p "$MOUNTDIR"
+mount -v "$ROOT_LOOP" "$MOUNTDIR"
+mkdir -v -p "$MOUNTDIR/$BOOT"
+mount -v "$BOOT_LOOP" "$MOUNTDIR/$BOOT"
 
 status "Rsyncing rootfs en archivo de imagen"
 rsync -aHAXx --exclude boot "${R}/" "${MOUNTDIR}/"
