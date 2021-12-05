@@ -7,9 +7,8 @@ was written for this script.
 - Fco José Rodríguez Martos - frangal_at_gmail.com -
 DISCLAIMER
 
-# Descomentar para activar debug
-# debug=true
-if [ "${debug:=}" = true ]; then
+# Debugging script
+if [[ "$*" == *--debug* ]]; then
   exec > >(tee -a -i "${0%.*}.log") 2>&1
   set -x
 fi
