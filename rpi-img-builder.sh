@@ -174,13 +174,14 @@ if [[ "${OS}" == "debian" ]]; then
   MIRROR=$DEB_MIRROR
   BOOTSTRAP_URL=$MIRROR
   KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
+  RASPI_FIRMWARE="raspi-firmware"
   # Seleccionar kernel y bootloader
   case ${OS}+${ARCHITECTURE} in
     debian*arm64)
-      KERNEL_IMAGE="linux-image-arm64/buster-backports raspi-firmware/buster-backports"
+      KERNEL_IMAGE="linux-image-arm64"
       ;;
     debian*armhf)
-      KERNEL_IMAGE="linux-image-armmp/buster-backports raspi-firmware/buster-backports"
+      KERNEL_IMAGE="linux-image-armmp"
       ;;
   esac
 elif [[ "${OS}" == "raspios" ]]; then
@@ -259,31 +260,20 @@ status "debootstrap second stage"
 systemd-nspawn_exec /debootstrap/debootstrap --second-stage
 
 # Definir sources.list
-if [ "$OS" = "debian" ]; then
+case ${OS}+${RELEASE}+${ARCHITECTURE} in
+  debian*buster*)
   echo "APT::Default-Release \"$RELEASE\";" >"$R"/etc/apt/apt.conf
-  echo -e "\
-  deb $MIRROR $RELEASE $COMPONENTS\n\
-  #deb-src $MIRROR $RELEASE $COMPONENTS\n\
-  deb $MIRROR-security/ $RELEASE/updates $COMPONENTS\n\
-  #deb-src $MIRROR-security/ $RELEASE/updates $COMPONENTS\n\
-  deb $MIRROR $RELEASE-updates $COMPONENTS\n\
-  #deb-src $MIRROR $RELEASE-updates $COMPONENTS\n\
-  deb $MIRROR $RELEASE-backports $COMPONENTS\n\
-  " >"$R"/etc/apt/sources.list
-elif [ "$OS" = "raspios" ]; then
-  if [ "$ARCHITECTURE" = "arm64" ]; then
-    echo "deb $DEB_MIRROR $RELEASE $COMPONENTS" >"$R"/etc/apt/sources.list
-    echo "#deb-src $DEB_MIRROR $RELEASE $COMPONENTS" >>"$R"/etc/apt/sources.list
-    echo "deb ${MIRROR_PIOS/raspbian/debian} $RELEASE main" >"$R"/etc/apt/sources.list.d/raspi.list
-    echo "#deb-src ${MIRROR_PIOS/raspbian/debian} $RELEASE main" >>"$R"/etc/apt/sources.list.d/raspi.list
-  elif [ "$ARCHITECTURE" = "armhf" ]; then
-    echo "deb $MIRROR $RELEASE $COMPONENTS" >"$R"/etc/apt/sources.list
-    echo "#deb-src $MIRROR $RELEASE $COMPONENTS" >>"$R"/etc/apt/sources.list
-    MIRROR=${PIOS_MIRROR/raspbian./archive.}
-    echo "deb ${MIRROR/raspbian/debian} $RELEASE main" >"$R"/etc/apt/sources.list.d/raspi.list
-    echo "#deb-src ${MIRROR/raspbian/debian} $RELEASE main" >>"$R"/etc/apt/sources.list.d/raspi.list
-  fi
-fi
+  echo "deb $MIRROR $RELEASE-backports $COMPONENTS" >>"$R"/etc/apt/sources.list
+  echo "deb $MIRROR-security/ $RELEASE/updates $COMPONENTS" >>"$R"/etc/apt/sources.list ;;
+  debian*bullseye*)
+  echo "deb $MIRROR $RELEASE-updates $COMPONENTS" >>"$R"/etc/apt/sources.list
+  echo "deb ${MIRROR/deb./security.}-security/ ${RELEASE}-security $COMPONENTS" >>"$R"/etc/apt/sources.list ;;
+  raspios*arm64)
+  echo "deb ${MIRROR_PIOS/raspbian/debian} $RELEASE main" >"$R"/etc/apt/sources.list.d/raspi.list ;;
+  raspios*armhf)
+  MIRROR=${PIOS_MIRROR/raspbian./archive.}
+  echo "deb ${MIRROR/raspbian/debian} $RELEASE main" >"$R"/etc/apt/sources.list.d/raspi.list ;;
+esac
 
 # Instalar archive-keyring en PiOS
 if [ "$OS" = "raspios" ]; then
@@ -368,9 +358,12 @@ if [ -n "$ADDPKG" ]; then
   INCLUDEPKGS="${ADDPKG} ${INCLUDEPKGS}"
 fi
 
-# Usar firmware-brcm80211/buster-backports en Debian
-if [[ "${OS}" == "debian" ]]; then
+# Usar buster-backports en Debian
+if [[ "${OS}-${RELEASE}" == "debian-buster" ]]; then
   FIRMWARES="${FIRMWARES}/buster-backports"
+  KERNEL_IMAGE="${KERNEL_IMAGE}/buster-backports"
+  RASPI_FIRMWARE="${RASPI_FIRMWARE}/buster-backports"
+  KERNEL_IMAGE="$KERNEL_IMAGE $RASPI_FIRMWARE"
 fi
 
 systemd-nspawn_exec apt-get update
@@ -381,7 +374,6 @@ mkdir -p "${R}/etc/initramfs-tools/conf.d/"
 echo "RESUME=none" > "${R}/etc/initramfs-tools/conf.d/resume"
 
 # Instalando kernel
-# shellcheck disable=SC2086
 systemd-nspawn_exec apt-get install -y ${KERNEL_IMAGE}
 # Configuración firmware
 if [ "$OS" = raspios ]; then
@@ -399,15 +391,12 @@ fi
 echo "hdmi_force_hotplug=1" >>"$R"/"${BOOT}"/config.txt
 
 status "Instalar paquetes base"
-# shellcheck disable=SC2086
 systemd-nspawn_exec apt-get install -y $INCLUDEPKGS
 status "Activar servicios generate-ssh-host-keys y rpi-resizerootfs"
-#echo | sed -e '/^#/d ; /^ *$/d' | systemd-nspawn_exec <<\EOF
 status "Activar servicio redimendionado partición root"
 systemd-nspawn_exec systemctl enable rpi-resizerootfs.service
 status "Activar servicio generación ket SSH"
 systemd-nspawn_exec systemctl enable generate-ssh-host-keys.service
-#EOF
 
 # Añadir nombre de host
 echo "$HOST_NAME" >"$R"/etc/hostname
