@@ -522,7 +522,7 @@ if [[ "$OS" == "debian" && "$VARIANT" == "lite" ]]; then
   pushd "$CURRENT_DIR"/userland/build
   cmake -DCMAKE_TOOLCHAIN_FILE="makefiles/cmake/toolchains/${LIB_ARCH}.cmake" \
   -DCMAKE_BUILD_TYPE=release -DALL_APPS=OFF "$CMAKE_ARM" ../
-  make -j$(nproc) 2>/dev/null
+  make -j"$(nproc)" 2>/dev/null
   mkdir -p "$R"/opt/vc
   mv {bin,lib,inc} "$R"/opt/vc
   cd "$CURRENT_DIR"
@@ -611,7 +611,6 @@ if [[ $FSTYPE == f2fs ]]; then
   mkfs.f2fs -f -l ROOTFS "$ROOT_LOOP"
 elif [[ $FSTYPE == ext4 ]]; then
   FEATURES="-O ^64bit,^metadata_csum -E stride=2,stripe-width=1024 -b 4096"
-  # shellcheck disable=SC2086
   mkfs $FEATURES -t "$FSTYPE" -L ROOTFS "$ROOT_LOOP"
 fi
 
