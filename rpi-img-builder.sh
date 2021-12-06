@@ -223,8 +223,10 @@ elif [[ "$APT_CACHER" =~ (apt-cacher-ng|root) ]]; then
 fi
 
 status "debootstrap first stage"
+sed -i'.bkp' 's/^keyring/keyring $KEYRING\ndefault_mirror $BOOTSTRAP_URL\n#/' /usr/share/debootstrap/scripts/sid
 debootstrap --foreign --arch="${ARCHITECTURE}" --components="${COMPONENTS// /,}" \
-  --keyring=$KEYRING --variant - --include="${MINPKGS// /,}" "$RELEASE" "$R" $BOOTSTRAP_URL
+  --keyring=$KEYRING --variant - --exclude="info" --include="${MINPKGS// /,}" "$RELEASE" "$R" $BOOTSTRAP_URL
+mv /usr/share/debootstrap/scripts/sid{.bkp,}
 
 cat >"$R"/etc/apt/apt.conf.d/99_norecommends <<EOF
 APT::Install-Recommends "false";
@@ -393,6 +395,7 @@ echo "hdmi_force_hotplug=1" >>"$R"/"${BOOT}"/config.txt
 
 status "Instalar paquetes base"
 systemd-nspawn_exec apt-get install -y $INCLUDEPKGS
+systemd-nspawn_exec apt-get -y dist-upgrade
 status "Activar servicios generate-ssh-host-keys y rpi-resizerootfs"
 status "Activar servicio redimendionado partición root"
 systemd-nspawn_exec systemctl enable rpi-resizerootfs.service
