@@ -50,7 +50,7 @@ BASEDIR="${CURRENT_DIR}/${OS}_${RELEASE}_${VARIANT}_${ARCHITECTURE}"
 R="${BASEDIR}/build"
 
 # Detectar privilegios
-[ $EUID -ne 0 ] && echo "Usar: sudo $0" 1>&2; exit 1
+[ $EUID -ne 0 ] && echo "Usar: sudo $0" 1>&2 && exit 1
 # Auto clean.
 [ $CLEAN -ge 1 ] && rm -rf "$BASEDIR"
 # Detecta antigua instalación
