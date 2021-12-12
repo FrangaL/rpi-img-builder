@@ -100,12 +100,9 @@ total_time() {
 installdeps() {
   local PKGS=""
   for PKG in $DEPS; do
-    if [[ $(dpkg -l "$PKG" | awk '/^ii/ { print $1 }') != ii ]]; then
-      PKGS+=" $PKG"
-    fi
-  done
-  [ -n "$PKGS" ] && apt-get -q -y install --no-install-recommends \
-  -o APT::Install-Suggests=0 -o dpkg::options::=--force-confnew -o Acquire::Retries=3 $PKGS
+    [[ $(dpkg -l "$PKG" | awk '/^ii/ { print $1 }') != ii ]] && PKGS+=" $PKG"
+  done; [ -n "$PKGS" ] && apt-get -q -y install --no-install-recommends \
+    -o APT::Install-Suggests=0 -o dpkg::options::=--force-confnew -o Acquire::Retries=3 $PKGS
 }
 
 status "Actualizando repositorio apt ..."
@@ -377,13 +374,9 @@ echo "RESUME=none" | tee "${R}/etc/initramfs-tools/conf.d/resume"
 systemd-nspawn_exec apt-get install -y ${KERNEL_IMAGE}
 # Configuración firmware
 if [ "$OS" = raspios ]; then
-  cat <<-EOM >"${R}"${BOOT}/cmdline.txt
-  net.ifnames=0 dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootwait
-EOM
+  echo "net.ifnames=0 dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootwait" >"${R}/${BOOT}"/cmdline.txt
 elif [ "$OS" = debian ]; then
-  cat <<-EOM >"${R}/${BOOT}"/cmdline.txt
-  net.ifnames=0 console=tty1 root=/dev/mmcblk0p2 rw  rootwait
-EOM
+  echo "net.ifnames=0 console=tty1 root=/dev/mmcblk0p2 rw  rootwait" >"${R}/${BOOT}"/cmdline.txt
 elif [ "$ARCHITECTURE" = "arm64" ]; then
   echo "arm_64bit=1" >>"$R"/"${BOOT}"/config.txt
 fi
