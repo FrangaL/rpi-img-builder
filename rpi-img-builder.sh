@@ -624,7 +624,8 @@ fi
 blockdev --flushbufs "${LOOPDEVICE}"
 losetup -d "${LOOPDEVICE}"
 
-[[ "$COMPRESS" =~ (gzip|xz) ]] && log "Comprimiendo imagen ..." white
+[[ "$COMPRESS" =~ (gzip|xz) ]] && IMG_END=Comprimiendo
+status "${IMG_END:-"Finalizando"} imagen ..."
 if [[ "$COMPRESS" == "gzip" ]]; then
   gzip "${IMGNAME}"
   chmod 664 "${IMGNAME}.gz"
