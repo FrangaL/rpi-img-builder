@@ -303,7 +303,7 @@ ExecStart=/usr/sbin/dpkg-reconfigure -fnoninteractive openssh-server
 RequiredBy=multi-user.target
 EOM
 
-# Scripts para redimensionar partición root
+status "Servicio redimendionado partición root"
 cat >"$R"/etc/systemd/system/rpi-resizerootfs.service <<EOM
 [Unit]
 Description=resize root file system
@@ -337,6 +337,7 @@ mount -o remount,rw ${DISKPART}
 resize2fs ${DISKPART}
 EOM
 chmod -c 755 "$R"/usr/sbin/rpi-resizerootfs
+systemd-nspawn_exec systemctl enable rpi-resizerootfs.service
 
 status "Configuración de usuarios y grupos"
 systemd-nspawn_exec <<_EOF
@@ -394,9 +395,7 @@ echo "hdmi_force_hotplug=1" >>"$R"/"${BOOT}"/config.txt
 status "Instalar paquetes base"
 systemd-nspawn_exec apt-get install -y $INCLUDEPKGS
 systemd-nspawn_exec apt-get -y dist-upgrade
-status "Activar servicios generate-ssh-host-keys y rpi-resizerootfs"
-status "Activar servicio redimendionado partición root"
-systemd-nspawn_exec systemctl enable rpi-resizerootfs.service
+
 status "Activar servicio generación ket SSH"
 systemd-nspawn_exec systemctl enable generate-ssh-host-keys.service
 
