@@ -65,7 +65,7 @@ fi
 mkdir -p "$R"
 
 # Override tee command
-tee() { [ "$(test $1)" != "${1%/*}" ] && mkdir -p ${1%/*} && echo "$1"; command tee -a "$1"; }
+tee() { [ "$(test $1)" != "${1%/*}" ] && mkdir -p ${1%/*} && echo "$1"; command tee "$1"; }
 
 # Print color echo
 function log() {
@@ -496,7 +496,7 @@ EOF
 
 if [ -n "$WPA_ESSID" ] && [ -n "$WPA_PASSWORD" ] && [ ! "${#WPA_PASSWORD}" -lt "8" ]; then
   systemd-nspawn_exec <<\EOF
-wpa_passphrase ${WPA_ESSID} ${WPA_PASSWORD} | tee /etc/wpa_supplicant/wpa_supplicant.conf
+wpa_passphrase ${WPA_ESSID} ${WPA_PASSWORD} | tee -a /etc/wpa_supplicant/wpa_supplicant.conf
 EOF
 elif [ -n "$WPA_ESSID" ]; then
   cat <<\EOM >>"$R"/etc/wpa_supplicant/wpa_supplicant.conf
