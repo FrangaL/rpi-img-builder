@@ -64,6 +64,9 @@ fi
 
 mkdir -p "$R"
 
+# Override tee command
+tee() { [ "$(test $1)" != "${1%/*}" ] && mkdir -p ${1%/*} && echo "$1"; command tee "$1"; }
+
 # Print color echo
 function log() {
   local set_color="$2"
@@ -71,7 +74,6 @@ function log() {
     red) color='\e[31m' ;;
     green) color='\e[32m' ;;
     yellow) color='\e[33m' ;;
-    gray) color='\e[38m' ;;
     white) color='\e[37m' ;;
     *) text="$1" ;;
   esac
