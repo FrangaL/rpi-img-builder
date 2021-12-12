@@ -620,9 +620,9 @@ elif [[ "$FSTYPE" == "ext4" ]]; then
   e2fsck -y -f "$ROOT_LOOP"
 fi
 
-# Eliminar dispositivos loop
-blockdev --flushbufs "${LOOPDEVICE}"
-losetup -d "${LOOPDEVICE}"
+status "Eliminar dispositivos loop"
+blockdev -v --flushbufs "${LOOPDEVICE}"
+losetup -v -d "${LOOPDEVICE}"
 
 [[ "$COMPRESS" =~ (gzip|xz) ]] && IMG_END=Comprimiendo
 status "${IMG_END:-"Finalizando"} imagen ..."
