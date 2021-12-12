@@ -615,9 +615,9 @@ status "Rsyncing rootfs en archivo de imagen"
 rsync -aHAXx --exclude boot "${R}/" "${MOUNTDIR}/"
 rsync -rtx "${R}/boot" "${MOUNTDIR}/" && sync
 
-# Desmontar sistema de archivos y eliminar compilación
-umount -l "$MOUNTDIR/$BOOT"
-umount -l "$MOUNTDIR"
+status "Desmontar sistema de archivos y eliminar compilación"
+umount -v -l "$MOUNTDIR/$BOOT"
+umount -v -l "$MOUNTDIR"
 rm -rf "$BASEDIR"
 
 status "Chequear particiones"
