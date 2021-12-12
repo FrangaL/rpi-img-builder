@@ -98,12 +98,14 @@ total_time() {
 }
 
 installdeps() {
+  local PKGS=""
   for PKG in $DEPS; do
     if [[ $(dpkg -l "$PKG" | awk '/^ii/ { print $1 }') != ii ]]; then
-      apt-get -q -y install --no-install-recommends -o APT::Install-Suggests=0 \
-      -o dpkg::options::=--force-confnew -o Acquire::Retries=3 "$PKG"
+      PKGS+=" $PKG"
     fi
   done
+  [ -n "$PKGS" ] && apt-get -q -y install --no-install-recommends \
+  -o APT::Install-Suggests=0 -o dpkg::options::=--force-confnew -o Acquire::Retries=3 $PKGS
 }
 
 status "Actualizando repositorio apt ..."
