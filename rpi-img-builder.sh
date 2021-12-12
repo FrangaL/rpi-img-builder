@@ -8,7 +8,7 @@ was written for this script.
 DISCLAIMER
 
 # Debugging script
-[[ "$*" == *--debug* ]] && exec > >(tee -a -i "${0%.*}.log") 2>&1; set -x
+[[ "$*" == *--debug* ]] && exec > >(tee -a -i "${0%.*}.log") 2>&1 && set -x
 
 # Configuración básica
 OS=${OS:-"debian"}
