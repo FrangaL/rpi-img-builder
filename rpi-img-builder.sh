@@ -37,8 +37,7 @@ PIOS_KEY="82B129927FA3303E"
 RASP_KEY="9165938D90FDDD2E"
 
 # Cargar configuración personalizada en la compilación.
-# shellcheck source=/dev/null
-if [ -f ./config.txt ]; then source ./config.txt; fi
+[ -f ./config.txt ] && source ./config.txt
 
 # Entorno de trabajo
 IMGNAME="${OS}-${RELEASE}-${VARIANT}-${ARCHITECTURE}.img"
@@ -285,9 +284,7 @@ EOF
 fi
 
 # Habilitar apt proxy http en contenedor
-if [ -n "$PROXY_URL" ]; then
-  echo "Acquire::http { Proxy \"$PROXY_URL\" };" >"$R"/etc/apt/apt.conf.d/66proxy
-fi
+[ -n "$PROXY_URL" ] && echo "Acquire::http { Proxy \"$PROXY_URL\" };" >"$R"/etc/apt/apt.conf.d/66proxy
 
 # Script para generar las key de OpenSSH server
 cat >"$R"/etc/systemd/system/generate-ssh-host-keys.service <<EOM
@@ -356,9 +353,7 @@ elif [[ "${VARIANT}" == "full" ]]; then
   INCLUDEPKGS="${EXTRAPKGS} ${WIRELESSPKGS} ${BLUETOOTH} ${DESKTOP}"
 fi
 # Añadir paquetes extra a la compilación
-if [ -n "$ADDPKG" ]; then
-  INCLUDEPKGS="${ADDPKG} ${INCLUDEPKGS}"
-fi
+[ -n "$ADDPKG" ] && INCLUDEPKGS="${ADDPKG} ${INCLUDEPKGS}"
 
 # Usar buster-backports en Debian
 if [[ "${OS}-${RELEASE}" == "debian-buster" ]]; then
