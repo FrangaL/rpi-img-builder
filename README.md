@@ -36,9 +36,9 @@ El script instalara automáticamente todas las dependencias necesarias.
 
 Las dependencias necesarias son:
 
-qemu-user-static debian-archive-keyring binfmt-support dosfstools rsync wget lsof
+qemu-user-static debian-archive-keyring binfmt-support dosfstools rsync wget
 
-git parted systemd-container debootstrap eatmydata xz-utils gnupg kmod udev
+lsof git parted systemd-container debootstrap xz-utils gnupg kmod udev
 
 ## Configuración
 
@@ -54,6 +54,14 @@ Podemos seleccionar diferentes sistemas operativos ( Debian / Raspios).
 
 ```shell
 sudo OS="raspios" ./rpi-img-builder.sh
+```
+---
+* `RELEASE` (Default: "buster")
+
+Podemos seleccionar diferentes release entre buster y bullseye.
+
+```shell
+sudo RELEASE="bullseye" ./rpi-img-builder.sh
 ```
 ---
 * `VARIANT` (Default: "lite")
