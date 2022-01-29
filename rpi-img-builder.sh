@@ -247,13 +247,6 @@ path-include /usr/share/locale/es*
 path-include /usr/share/locale/locale.alias
 EOF
 
-  # Raspberry PI no tiene pci ni acpi
-  cat >"$R"/etc/dpkg/dpkg.cfg.d/02_no_pci_acpi <<EOF
-path-exclude=/lib/udev/hwdb.d/20-pci*
-path-exclude=/lib/udev/hwdb.d/20-acpi*
-EOF
-fi
-
 status "debootstrap second stage"
 systemd-nspawn_exec /debootstrap/debootstrap --second-stage
 
