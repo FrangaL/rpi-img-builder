@@ -159,6 +159,7 @@ systemd-nspawn_exec() {
 # Base debootstrap
 COMPONENTS="main contrib non-free"
 MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron wget gnupg"
+EXCLUDE="info install-info tasksel"
 EXTRAPKGS="openssh-server parted locales dosfstools sudo libterm-readline-gnu-perl"
 FIRMWARES="firmware-misc-nonfree firmware-atheros firmware-realtek firmware-libertas firmware-brcm80211"
 WIRELESSPKGS="wpasupplicant crda wireless-tools rfkill wireless-regdb"
@@ -222,7 +223,7 @@ fi
 status "debootstrap first stage"
 sed -i'.bkp' 's/^keyring.*/keyring $KEYRING\ndefault_mirror $BOOTSTRAP_URL/' /usr/share/debootstrap/scripts/sid
 debootstrap --foreign --arch="${ARCHITECTURE}" --components="${COMPONENTS// /,}" \
-  --keyring=$KEYRING --variant - --exclude="info,install-info" --include="${MINPKGS// /,}" "$RELEASE" "$R" $BOOTSTRAP_URL
+  --keyring=$KEYRING --variant - --exclude="${EXCLUDE// /,}" --include="${MINPKGS// /,}" "$RELEASE" "$R" $BOOTSTRAP_URL
 mv /usr/share/debootstrap/scripts/sid{.bkp,}
 
 cat >"$R"/etc/apt/apt.conf.d/99_norecommends <<EOF
@@ -536,7 +537,6 @@ find "$R"/var/log -depth -type f -print0 | xargs -0 truncate -s 0
 rm -f "$R"/usr/bin/qemu*
 rm -rf userland
 if [[ "$VARIANT" == "slim" ]]; then
-  systemd-nspawn_exec apt-get -y remove --purge wget tasksel
   find "$R"/usr/share/doc -depth -type f ! -name copyright -print0 | xargs -0 rm
   find "$R"/usr/share/doc -empty -print0 | xargs -0 rmdir
   rm -rf "$R"/usr/share/man/* "$R"/usr/share/info/*
