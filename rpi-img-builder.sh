@@ -247,6 +247,7 @@ path-include /usr/share/locale/en*
 path-include /usr/share/locale/es*
 path-include /usr/share/locale/locale.alias
 EOF
+fi
 
 status "debootstrap second stage"
 systemd-nspawn_exec /debootstrap/debootstrap --second-stage
