@@ -47,8 +47,7 @@ R="${BASEDIR}/build"
 
 # Detectar privilegios
 [ $EUID -ne 0 ] && echo "Usar: sudo $0" 1>&2 && exit 1
-# Auto clean.
-[ $CLEAN -ge 1 ] && rm -rf "$BASEDIR"
+
 # Detecta antigua instalación
 if [ -e "$BASEDIR" ]; then
   echo "El directorio $BASEDIR existe, no se continuara"
