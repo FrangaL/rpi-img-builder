@@ -57,8 +57,6 @@ elif [[ $BASEDIR =~ [[:space:]] ]]; then
   exit 1
 fi
 
-mkdir -p "$R"
-
 # Override tee command
 tee() { [ "$(test $1)" != "${1%/*}" ] && mkdir -p ${1%/*} && echo "$1"; command tee "$1"; }
 
@@ -173,12 +171,8 @@ if [[ "${OS}" == "debian" ]]; then
   RASPI_FIRMWARE="raspi-firmware"
   # Seleccionar kernel y bootloader
   case ${OS}+${ARCHITECTURE} in
-    debian*arm64)
-      KERNEL_IMAGE="linux-image-arm64"
-      ;;
-    debian*armhf)
-      KERNEL_IMAGE="linux-image-armmp"
-      ;;
+    debian*arm64) KERNEL_IMAGE="linux-image-arm64" ;;
+    debian*armhf) KERNEL_IMAGE="linux-image-armmp" ;;
   esac
 elif [[ "${OS}" == "raspios" ]]; then
   BOOT="/boot"
@@ -189,14 +183,12 @@ elif [[ "${OS}" == "raspios" ]]; then
       MIRROR_PIOS=${MIRROR/raspbian./archive.}
       KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
       GPG_KEY=$PIOS_KEY
-      BOOTSTRAP_URL=$DEB_MIRROR
-      ;;
+      BOOTSTRAP_URL=$DEB_MIRROR ;;
     raspios*armhf)
       MIRROR=$RASP_MIRROR
       KEYRING=/usr/share/keyrings/raspbian-archive-keyring.gpg
       GPG_KEY=$RASP_KEY
-      BOOTSTRAP_URL=$RASP_MIRROR
-      ;;
+      BOOTSTRAP_URL=$RASP_MIRROR ;;
   esac
 fi
 
@@ -220,6 +212,7 @@ elif [[ "$APT_CACHER" =~ (apt-cacher-ng|root) ]]; then
 fi
 
 status "debootstrap first stage"
+mkdir -p "$R"
 sed -i'.bkp' 's/^keyring.*/keyring $KEYRING\ndefault_mirror $BOOTSTRAP_URL/' /usr/share/debootstrap/scripts/sid
 debootstrap --foreign --arch="${ARCHITECTURE}" --components="${COMPONENTS// /,}" \
   --keyring=$KEYRING --variant - --exclude="${EXCLUDE// /,}" --include="${MINPKGS// /,}" "$RELEASE" "$R" $BOOTSTRAP_URL
