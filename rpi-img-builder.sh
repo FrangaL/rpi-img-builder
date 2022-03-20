@@ -11,8 +11,8 @@ DISCLAIMER
 [[ "$*" == *--debug* ]] && exec > >(tee -a -i "${0%.*}.log") 2>&1 && set -x
 
 # Configuración básica
-OS=${OS:-"debian"}
-RELEASE=${RELEASE:-"buster"}
+OS=${OS:-"raspios"}
+RELEASE=${RELEASE:-"bullseye"}
 ROOT_PASSWORD=${ROOT_PASSWORD:-"raspberry"}
 HOST_NAME=${HOST_NAME:-"rpi"}
 COMPRESS=${COMPRESS:-"none"}
