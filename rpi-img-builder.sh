@@ -369,11 +369,11 @@ elif [ "$ARCHITECTURE" = "arm64" ]; then
 fi
 echo "hdmi_force_hotplug=1" >>"$R"/"${BOOT}"/config.txt
 
-status "Instalar paquetes base"
+status "Install packages base"
 systemd-nspawn_exec apt-get install -y $INCLUDEPKGS
 systemd-nspawn_exec apt-get -y dist-upgrade
 
-status "Activar servicio generación ket SSH"
+status "Enable service generate keys SSH"
 systemd-nspawn_exec systemctl enable generate-ssh-host-keys.service
 
 # Add hostname.
@@ -383,10 +383,10 @@ status "Define time zone"
 systemd-nspawn_exec ln -nfs /usr/share/zoneinfo/"$TIMEZONE" /etc/localtime
 systemd-nspawn_exec dpkg-reconfigure -fnoninteractive tzdata
 
-# Sin contraseña sudo en el usuario pi
+# Disable password sudo.
 echo "pi ALL=(ALL) NOPASSWD:ALL" >>"$R"/etc/sudoers
 
-status "Configurar locales"
+status "Configure locales"
 sed -i "s/^# *\($LOCALES\)/\1/" "$R"/etc/locale.gen
 systemd-nspawn_exec locale-gen
 echo "LANG=$LOCALES" >"$R"/etc/locale.conf
@@ -591,7 +591,7 @@ status "Rsyncing files on rootfs image"
 rsync -aHAXx --exclude boot "${R}/" "${MOUNTDIR}/"
 rsync -rtx "${R}/boot" "${MOUNTDIR}/" && sync
 
-status "Desmontar sistema de archivos y eliminar compilación"
+status "Unmount file system and remove build"
 umount -v -l "$MOUNTDIR/$BOOT"
 umount -v -l "$MOUNTDIR"
 rm -rf "$BASEDIR"
