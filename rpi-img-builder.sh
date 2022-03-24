@@ -10,7 +10,7 @@ DISCLAIMER
 # Debugging script
 [[ "$*" == *--debug* ]] && exec > >(tee -a -i "${0%.*}.log") 2>&1 && set -x
 
-# Configuración básica
+# Basic configuration.
 OS=${OS:-"raspios"}
 RELEASE=${RELEASE:-"bullseye"}
 ROOT_PASSWORD=${ROOT_PASSWORD:-"raspberry"}
@@ -25,7 +25,7 @@ BOOT_MB=${BOOT_MB:-"136"}
 FREE_SPACE=${FREE_SPACE:-"256"}
 MACHINE=$(dbus-uuidgen)
 
-# Mirrors de descarga
+# Download mirrors.
 DEB_MIRROR="http://deb.debian.org/debian"
 PIOS_MIRROR="http://raspbian.raspberrypi.org/raspbian/"
 RASP_MIRROR="http://archive.raspbian.org/raspbian/"
@@ -36,24 +36,24 @@ PIOS_KEY="82B129927FA3303E"
 # raspbian-archive-keyring
 RASP_KEY="9165938D90FDDD2E"
 
-# Cargar configuración personalizada en la compilación.
+# Load custom config.
 [ -f ./config.txt ] && source ./config.txt
 
-# Entorno de trabajo
+# Work enviroment.
 IMGNAME="${OS}-${RELEASE}-${VARIANT}-${ARCHITECTURE}.img"
 CURRENT_DIR="$(pwd)"
 BASEDIR="${CURRENT_DIR}/${OS}_${RELEASE}_${VARIANT}_${ARCHITECTURE}"
 R="${BASEDIR}/build"
 
-# Detectar privilegios
-[ $EUID -ne 0 ] && echo "Usar: sudo $0" 1>&2 && exit 1
+# Detect privileges
+[ $EUID -ne 0 ] && echo "Use: sudo $0" 1>&2 && exit 1
 
-# Detecta antigua instalación
+# Detect old compilation.
 if [ -e "$BASEDIR" ]; then
-  echo "El directorio $BASEDIR existe, no se continuara"
+  echo "The directory $BASEDIR exists, it will not be continued"
   exit 1
 elif [[ $BASEDIR =~ [[:space:]] ]]; then
-  echo "El directorio \"$BASEDIR\" contiene espacios en blanco. No soportado."
+  echo "The directory \"$BASEDIR\" contains blanks. Not supported."
   exit 1
 fi
 
@@ -102,21 +102,21 @@ installdeps() {
     -o APT::Install-Suggests=0 -o dpkg::options::=--force-confnew -o Acquire::Retries=3 $PKGS
 }
 
-status "Actualizando repositorio apt ..."
+status "Updating apt repository..."
 apt-get update || apt-get update
-status "Instando dependencias necesarias ..."
+status "Installing necessary dependencies..."
 DEPS="binfmt-support dosfstools qemu-user-static rsync wget lsof git parted dirmngr e2fsprogs \
 systemd-container debootstrap xz-utils kmod udev dbus gnupg gnupg-utils debian-archive-keyring"
 installdeps
 
-# Checkear versión mínima debootstrap
+# Check minimum version of bootstrap
 if dpkg --compare-versions "$(dpkg-query -f '${Version}' -W debootstrap)" lt "1.0.105"; then
   echo "Actualmente su versión de debootstrap no soporta el script" >&2
   echo "Actualice debootstrap, versión mínima 1.0.105" >&2
   exit 1
 fi
 
-# Variables según arquitectura
+# Variables according to architecture.
 case ${ARCHITECTURE} in
   arm64)
     QEMUARCH="qemu-aarch64"
@@ -132,13 +132,13 @@ case ${ARCHITECTURE} in
     ;;
 esac
 
-# Detectar modulo binfmt_misc cargado en el kernel
+# Detect modul binfmt_misc load into kernel.
 MODBINFMT=$(lsmod | grep binfmt_misc | awk '{print $1}')
 BINFMTS=$(awk </proc/sys/fs/binfmt_misc/${QEMUARCH} '{if(NR==1) print $1}')
 [ -z "${MODBINFMT}" ] && modprobe binfmt_misc &>/dev/null
 [ "${BINFMTS}" == "disabled" ] && update-binfmts --enable $QEMUARCH &>/dev/null
 
-# Check systemd-nspawn versión
+# Check systemd-nspawn version
 NSPAWN_VER=$(systemd-nspawn --version | awk '{if(NR==1) print $2}')
 if [[ $NSPAWN_VER -ge 245 ]]; then
   EXTRA_ARGS="--hostname=$HOST_NAME -q -P"
@@ -147,7 +147,7 @@ elif [[ $NSPAWN_VER -ge 241 ]]; then
 else
   EXTRA_ARGS="-q"
 fi
-# Entorno systemd-nspawn
+# Enviroment systemd-nspawn.
 systemd-nspawn_exec() {
   ENV="RUNLEVEL=1,LANG=C,DEBIAN_FRONTEND=noninteractive,DEBCONF_NOWARNINGS=yes"
   systemd-nspawn --bind $QEMUBIN $EXTRA_ARGS --capability=cap_setfcap -E $ENV -M "$MACHINE" -D "${R}" "$@"
@@ -169,7 +169,7 @@ if [[ "${OS}" == "debian" ]]; then
   BOOTSTRAP_URL=$MIRROR
   KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
   RASPI_FIRMWARE="raspi-firmware"
-  # Seleccionar kernel y bootloader
+  # Select kernel and bootloader.
   case ${OS}+${ARCHITECTURE} in
     debian*arm64) KERNEL_IMAGE="linux-image-arm64" ;;
     debian*armhf) KERNEL_IMAGE="linux-image-armmp" ;;
@@ -192,7 +192,7 @@ elif [[ "${OS}" == "raspios" ]]; then
   esac
 fi
 
-# Instalar certificados
+# Install certificates.
 if [ ! -f $KEYRING ]; then
   GNUPGHOME="$(mktemp -d)"
   export GNUPGHOME
@@ -200,7 +200,7 @@ if [ ! -f $KEYRING ]; then
   rm -rf "${GNUPGHOME}"
 fi
 
-# Habilitar proxy http first stage
+# Enable proxy http first stage
 APT_CACHER=$(lsof -i :3142 | cut -d ' ' -f3 | uniq | sed '/^\s*$/d')
 if [ -n "$PROXY_URL" ]; then
   export http_proxy=$PROXY_URL
@@ -260,7 +260,7 @@ case ${OS}+${RELEASE}+${ARCHITECTURE} in
   echo "deb ${MIRROR/raspbian/debian} $RELEASE main" >"$R"/etc/apt/sources.list.d/raspi.list ;;
 esac
 
-# Instalar archive-keyring en PiOS
+# Install archive-keyring on PiOS
 if [ "$OS" = "raspios" ]; then
   [ "$RELEASE" = "bullseye" ] && RASP_KEY="82B129927FA3303E"
   systemd-nspawn_exec <<EOF
@@ -269,10 +269,10 @@ if [ "$OS" = "raspios" ]; then
 EOF
 fi
 
-# Habilitar apt proxy http en contenedor
+# Enable apt proxy http on compilation.
 [ -n "$PROXY_URL" ] && echo "Acquire::http { Proxy \"$PROXY_URL\" };" >"$R"/etc/apt/apt.conf.d/66proxy
 
-# Script para generar las key de OpenSSH server
+# Script to generate OpenSSH server keys
 cat >"$R"/etc/systemd/system/generate-ssh-host-keys.service <<EOM
 [Unit]
 Description=OpenSSH server key generation
@@ -286,7 +286,7 @@ ExecStart=/usr/sbin/dpkg-reconfigure -fnoninteractive openssh-server
 RequiredBy=multi-user.target
 EOM
 
-status "Servicio redimendionado partición root"
+status "Service to resize partion root"
 cat >"$R"/etc/systemd/system/rpi-resizerootfs.service <<EOM
 [Unit]
 Description=resize root file system
@@ -322,7 +322,7 @@ EOM
 chmod -c 755 "$R"/usr/sbin/rpi-resizerootfs
 systemd-nspawn_exec systemctl enable rpi-resizerootfs.service
 
-status "Configuración de usuarios y grupos"
+status "Configuration of users and groups"
 systemd-nspawn_exec <<_EOF
 echo "root:${ROOT_PASSWORD}" | chpasswd
 adduser --gecos pi --disabled-password pi
@@ -338,10 +338,10 @@ elif [[ "${VARIANT}" == "lite" ]]; then
 elif [[ "${VARIANT}" == "full" ]]; then
   INCLUDEPKGS="${EXTRAPKGS} ${WIRELESSPKGS} ${BLUETOOTH} ${DESKTOP}"
 fi
-# Añadir paquetes extra a la compilación
+# Add extra packagesa on compilation.
 [ -n "$ADDPKG" ] && INCLUDEPKGS="${ADDPKG} ${INCLUDEPKGS}"
 
-# Usar buster-backports en Debian
+# Use buster-backports on Debian.
 if [[ "${OS}-${RELEASE}" == "debian-buster" ]]; then
   FIRMWARES="${FIRMWARES}/buster-backports"
   KERNEL_IMAGE="${KERNEL_IMAGE}/buster-backports"
@@ -357,9 +357,9 @@ systemd-nspawn_exec apt-get install -y ${FIRMWARES}
 # Disable suspend/resume - speeds up boot massively
 echo "RESUME=none" | tee "${R}/etc/initramfs-tools/conf.d/resume"
 
-# Instalando kernel
+# Installl kernel
 systemd-nspawn_exec apt-get install -y ${KERNEL_IMAGE}
-# Configuración firmware
+# Configuration firmware
 if [ "$OS" = raspios ]; then
   echo "net.ifnames=0 dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootwait" >"${R}/${BOOT}"/cmdline.txt
 elif [ "$OS" = debian ]; then
@@ -376,10 +376,10 @@ systemd-nspawn_exec apt-get -y dist-upgrade
 status "Activar servicio generación ket SSH"
 systemd-nspawn_exec systemctl enable generate-ssh-host-keys.service
 
-# Añadir nombre de host
+# Add hostname.
 echo "$HOST_NAME" >"$R"/etc/hostname
 
-status "Definir zona horaria"
+status "Define time zone"
 systemd-nspawn_exec ln -nfs /usr/share/zoneinfo/"$TIMEZONE" /etc/localtime
 systemd-nspawn_exec dpkg-reconfigure -fnoninteractive tzdata
 
@@ -397,13 +397,13 @@ if [ -z "$LANG" ]; then
 fi
 EOM
 
-# Habilitar SWAP
+# Enable SWAP.
 echo 'vm.swappiness=25' >>"$R"/etc/sysctl.conf
 echo 'vm.vfs_cache_pressure=50' >>"$R"/etc/sysctl.conf
 systemd-nspawn_exec apt-get install -y dphys-swapfile >/dev/null 2>&1
 sed -i "s/#CONF_SWAPSIZE=/CONF_SWAPSIZE=256/g" "$R"/etc/dphys-swapfile
 
-# Instalar f2fs-tools y modificar cmdline.txt
+# Install f2fs-tools and modify cmdline.txt
 if [ "$FSTYPE" = "f2fs" ]; then
   DEPS="f2fs-tools" installdeps
   systemd-nspawn_exec apt-get install -y f2fs-tools
@@ -413,14 +413,14 @@ elif [ "$FSTYPE" = "ext4" ]; then
   FSOPTS="defaults,noatime"
 fi
 
-# Definiendo puntos de montaje
+# Definine mount point.
 cat >"$R"/etc/fstab <<EOM
 proc            /proc           proc    defaults          0       0
 /dev/mmcblk0p2  /               $FSTYPE    $FSOPTS  0       1
 /dev/mmcblk0p1  $BOOT  vfat    defaults          0       2
 EOM
 
-# Crear archivo hosts
+# Create hosts file.
 cat >"$R"/etc/hosts <<EOM
 127.0.1.1       ${HOST_NAME}
 127.0.0.1       localhost
@@ -429,7 +429,7 @@ ff02::1         ip6-allnodes
 ff02::2         ip6-allrouters
 EOM
 
-# Configuración de red
+# Network configuration.
 if [[ ! $IPV4 || ! $NETMASK || ! $ROUTER || ! $DNS ]]; then
   NETWORK=dhcp
   DNS=${DNS:-8.8.8.8}
@@ -437,7 +437,7 @@ else
   NETWORK=static
 fi
 
-# Preparar configuración de red
+# Define network configuration.
 cat <<EOF >"$R"/etc/network/interfaces
 source-directory /etc/network/interfaces.d
 
@@ -460,7 +460,7 @@ if [[ "$NETWORK" == "static" ]]; then
   } >>"$R"/etc/network/interfaces
 fi
 
-# Configuración wireless
+# Wireless config.
 cat <<EOF >"$R"/etc/wpa_supplicant/wpa_supplicant.conf
 ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
 update_config=1
@@ -500,7 +500,7 @@ export PATH
 EOT
   chmod +x "$R"/etc/profile.d/userland.sh
   systemd-nspawn_exec ldconfig
-  # Reglas udev Raspberry PI
+  # Rules udev Raspberry PI
   cat <<\EOF >"$R"/etc/udev/rules.d/55-rpi.rules
 SUBSYSTEM=="vchiq",GROUP="video",MODE="0660"
 SUBSYSTEM=="vc-sm",GROUP="video",MODE="0660"
@@ -521,7 +521,7 @@ elif [[ "$OS" == "raspios" && "$VARIANT" == "lite" ]]; then
   systemd-nspawn_exec apt-get install -y libraspberrypi-bin raspi-config
 fi
 
-# Limpiar sistema
+# Clean system.
 if [ -n "$PROXY_URL" ]; then
   unset http_proxy
   rm -rf "$R"/etc/apt/apt.conf.d/66proxy
@@ -536,7 +536,7 @@ if [[ "$VARIANT" == "slim" ]]; then
   rm -rf "$R"/usr/share/lintian/*
   rm -rf "$R"/etc/dpkg/dpkg.cfg.d/01_no_doc_locale
 fi
-# Crear manifiesto
+# Create manifest.
 if [[ "$MANIFEST" == "true" ]]; then
   systemd-nspawn_exec sh -c "dpkg-query -f '\${Package} \${Version}\n' -W > /${IMGNAME}.manifest"
   cp $R/$IMGNAME.manifest $IMGNAME.manifest
@@ -555,23 +555,23 @@ rm -rf "$R"/root/.bash_history
 rm -rf "$R"/etc/machine-id
 rm -rf "$R"/var/lib/dbus/machine-id
 
-# Calcule el espacio para crear la imagen.
+# Calculate image size.
 ROOTSIZE=$(du -s -B1 "$R" --exclude="${R}"/boot | cut -f1)
 ROOTSIZE=$((ROOTSIZE * 5 * 1024 / 5 / 1000 / 1024))
 RAW_SIZE=$(($((FREE_SPACE * 1024)) + ROOTSIZE + $((BOOT_MB * 1024)) + 4096))
 
-status "Crea el disco y particionar"
+status "Create image and partitions"
 fallocate -l "$(echo ${RAW_SIZE}Ki | numfmt --from=iec-i --to=si)" "${IMGNAME}"
 parted -s "${IMGNAME}" mklabel msdos
 parted -s "${IMGNAME}" mkpart primary fat32 1MiB $((BOOT_MB + 1))MiB
 parted -s -a minimal "${IMGNAME}" mkpart primary $((BOOT_MB + 1))MiB 100%
 
-# Establecer las variables de partición
+# Set partition variables.
 LOOPDEVICE=$(losetup --show -fP "${IMGNAME}")
 BOOT_LOOP="${LOOPDEVICE}p1"
 ROOT_LOOP="${LOOPDEVICE}p2"
 
-status "Formatear particiones"
+status "Format partitions."
 mkfs.vfat -n BOOT -F 32 -v "$BOOT_LOOP"
 if [[ $FSTYPE == f2fs ]]; then
   mkfs.f2fs -f -l ROOTFS "$ROOT_LOOP"
@@ -580,14 +580,14 @@ elif [[ $FSTYPE == ext4 ]]; then
   mkfs $FEATURES -t "$FSTYPE" -L ROOTFS "$ROOT_LOOP"
 fi
 
-status "Crear los directorios para las particiones y montarlas"
+status "Create the directories for the partitions and mount them."
 MOUNTDIR="$BUILDDIR/mount"
 mkdir -v -p "$MOUNTDIR"
 mount -v "$ROOT_LOOP" "$MOUNTDIR"
 mkdir -v -p "$MOUNTDIR/$BOOT"
 mount -v "$BOOT_LOOP" "$MOUNTDIR/$BOOT"
 
-status "Rsyncing rootfs en archivo de imagen"
+status "Rsyncing files on rootfs image"
 rsync -aHAXx --exclude boot "${R}/" "${MOUNTDIR}/"
 rsync -rtx "${R}/boot" "${MOUNTDIR}/" && sync
 
@@ -596,7 +596,7 @@ umount -v -l "$MOUNTDIR/$BOOT"
 umount -v -l "$MOUNTDIR"
 rm -rf "$BASEDIR"
 
-status "Chequear particiones"
+status "Check partitions"
 log "Check filesystem boot partition type vfat" white
 dosfsck -w -r -a -t "$BOOT_LOOP"
 log "Check filesystem root partition type $FSTYPE" white
@@ -606,7 +606,7 @@ elif [[ "$FSTYPE" == "ext4" ]]; then
   e2fsck -y -f "$ROOT_LOOP"
 fi
 
-status "Eliminar dispositivos loop"
+status "Delete devices loop"
 blockdev -v --flushbufs "${LOOPDEVICE}"
 losetup -v -d "${LOOPDEVICE}"
 
@@ -622,8 +622,8 @@ elif [[ "$COMPRESS" == "xz" ]]; then
 else
   chmod 664 "${IMGNAME}"
 fi
-# Tiempo total compilación
+# Total time compilation.
 total_time $SECONDS
-# Quit
+# Quit.
 log "\n Your image is: \033[0m $IMGNAME (Size: $(du -h $IMGNAME | cut -f1))" white
 exit 0
