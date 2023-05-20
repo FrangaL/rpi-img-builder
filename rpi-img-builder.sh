@@ -82,16 +82,22 @@ status_i=0
 status_t=$(($(grep '.*status ' $0 | wc -l) -1))
 
 # Calculate total time compilation.
-total_time() {
-  local T=$1
-  local H=$((T/60/60%24))
-  local M=$((T/60%60))
-  local S=$((T%60))
-  printf '\nTiempo final: '
-  [[ $H -gt 0 ]] && printf '%d hours ' $H
-  [[ $M -gt 0 ]] && printf '%d minutes ' $M
-  [[ $D -gt 0 || $H -gt 0 || $M -gt 0 ]] && printf 'and '
-  printf '%d seconds\n' $S
+function fmt_plural() {
+  [[ $1 -gt 1 ]] && printf "%d %s" $1 "${3}" || printf "%d %s" $1 "${2}"
+}
+
+
+function total_time() {
+  local t=$(( $1 ))
+  local h=$(( t / 3600 ))
+  local m=$(( t % 3600 / 60 ))
+  local s=$(( t % 60 ))
+
+  printf "Duración: "
+  [[ $h -gt 0 ]] && { fmt_plural $h "hora" "horas"; printf " "; }
+  [[ $m -gt 0 ]] && { fmt_plural $m "minuto" "minutos"; printf " "; }
+  [[ $s -gt 0 ]] && fmt_plural $s "segundo" "segundos"
+  printf "\n"
 }
 
 installdeps() {
