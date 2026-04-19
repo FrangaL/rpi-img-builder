@@ -9,7 +9,7 @@ jobs:
     strategy:
       matrix:
         DISTRO: ["debian", "raspios"]
-        SUITE: ["buster", "bullseye"]
+        SUITE: ["bullseye"]
         ARCH: ["arm64", "armhf"]
         VARIANT: ["slim", "lite"]
     name: rpi-builder
