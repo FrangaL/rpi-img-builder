@@ -27,7 +27,7 @@ MACHINE=$(dbus-uuidgen)
 
 # Download mirrors.
 DEB_MIRROR="http://archive.debian.org/debian"
-PIOS_MIRROR="http://raspbian.raspberrypi.org/raspbian/"
+PIOS_MIRROR="http://legacy.raspberrypi.org/raspbian/"
 RASP_MIRROR="http://archive.raspbian.org/raspbian/"
 # Key server
 KEY_SRV=${KEY_SRV:-"keyserver.ubuntu.com"}
