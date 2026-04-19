@@ -26,7 +26,7 @@ FREE_SPACE=${FREE_SPACE:-"256"}
 MACHINE=$(dbus-uuidgen)
 
 # Download mirrors.
-DEB_MIRROR="http://deb.debian.org/debian"
+DEB_MIRROR="http://archive.debian.org/debian"
 PIOS_MIRROR="http://raspbian.raspberrypi.org/raspbian/"
 RASP_MIRROR="http://archive.raspbian.org/raspbian/"
 # Key server
