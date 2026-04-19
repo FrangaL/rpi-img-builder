@@ -9,17 +9,9 @@ _Herramienta para crear imágenes Debian/Raspios arm64/armhf para Raspberry Pi 3
 ## Pre-compiled images
 Operating system | Variant | Arch | Download image url | Hash
 
-Debian Buster | Lite | 64-bit | [debian-buster-lite-arm64.img.xz](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/debian-buster-lite-arm64.img.xz) | [sha256](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/debian-buster-lite-arm64.img.sha256)
-
-Debian Buster | Lite | 32-bit | [debian-buster-lite-armhf.img.xz](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/debian-buster-lite-armhf.img.xz) | [sha256](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/debian-buster-lite-armhf.img.sha256)
-
 Debian Bullseye | Lite | 64-bit | [debian-bullseye-lite-arm64.img.xz](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/debian-bullseye-lite-arm64.img.xz) | [sha256](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/debian-bullseye-lite-arm64.img.sha256)
 
 Debian Bullseye | Lite | 32-bit | [debian-bullseye-lite-armhf.img.xz](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/debian-bullseye-lite-armhf.img.xz) | [sha256](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/debian-bullseye-lite-armhf.img.sha256)
-
-RasPiOS Buster | Lite | 64-bit | [raspios-buster-lite-arm64.img.xz](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/raspios-buster-lite-arm64.img.xz) | [sha256](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/raspios-buster-lite-arm64.img.sha256)
-
-RasPiOS Buster | Lite | 32-bit | [raspios-buster-lite-armhf.img.xz](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/raspios-buster-lite-armhf.img.xz) | [sha256](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/raspios-buster-lite-armhf.img.sha256)
 
 RasPiOS Bullseye | Lite | 64-bit | [raspios-bullseye-lite-arm64.img.xz](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/raspios-bullseye-lite-arm64.img.xz) | [sha256](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/raspios-bullseye-lite-arm64.img.sha256)
 
@@ -56,7 +48,7 @@ Podemos seleccionar diferentes sistemas operativos ( Debian / Raspios).
 sudo OS="raspios" ./rpi-img-builder.sh
 ```
 ---
-* `RELEASE` (Default: "buster")
+* `RELEASE` (Default: "bullseyes")
 
 Podemos seleccionar diferentes release entre buster y bullseye.
 
@@ -225,7 +217,7 @@ docker exec -it rpi-images git pull
 
 docker exec -it rpi-images bash -c "COMPRESS=xz ./rpi-img-builder.sh"
 
-docker cp rpi-images:/images/debian-buster-lite-arm64.img.xz .
+docker cp rpi-images:/images/debian-bullseye-lite-arm64.img.xz .
 ```
 
 ## Instalar la imagen en la Raspberry Pi
@@ -241,11 +233,11 @@ Verifique que sea correcto dispositivo!, copie la imagen en la tarjeta SD:
 
 ```shell
 # Imagen comprimida en gz
-gzip -c debian-buster-arm64.img.gz|sudo dd of=/dev/sdX bs=64k oflag=dsync status=progress
+gzip -c debian-bullseye-arm64.img.gz|sudo dd of=/dev/sdX bs=64k oflag=dsync status=progress
 
 # Imagen comprimida en xz
-xzcat debian-buster-arm64.img.xz|sudo dd of=/dev/sdX bs=64k oflag=dsync status=progress
+xzcat debian-bullseye-arm64.img.xz|sudo dd of=/dev/sdX bs=64k oflag=dsync status=progress
 
 # Imagen sin comprimir
-sudo dd if=debian-buster-arm64.img of=/dev/sdX bs=64k oflag=dsync status=progress
+sudo dd if=debian-bullseye-arm64.img of=/dev/sdX bs=64k oflag=dsync status=progress
 ```
