@@ -257,8 +257,7 @@ case ${OS}+${RELEASE}+${ARCHITECTURE} in
   echo "deb $MIRROR $RELEASE-backports $COMPONENTS" >>"$R"/etc/apt/sources.list
   echo "deb $MIRROR-security/ $RELEASE/updates $COMPONENTS" >>"$R"/etc/apt/sources.list ;;
   debian*bullseye*)
-  echo "deb $MIRROR $RELEASE-updates $COMPONENTS" >>"$R"/etc/apt/sources.list
-  echo "deb ${MIRROR/deb./security.}-security/ ${RELEASE}-security $COMPONENTS" >>"$R"/etc/apt/sources.list ;;
+  echo "deb $MIRROR $RELEASE-updates $COMPONENTS" >>"$R"/etc/apt/sources.list ;;
   raspios*arm64)
   echo "deb ${MIRROR_PIOS/raspbian/debian} $RELEASE main" >"$R"/etc/apt/sources.list.d/raspi.list ;;
   raspios*armhf)
