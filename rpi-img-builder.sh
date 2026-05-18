@@ -284,8 +284,8 @@ elif [[ "${OS}" == "raspios" ]]; then
       ;;
     raspios*armhf)
       MIRROR=$RASP_MIRROR
-      KEYRING=/usr/share/keyrings/raspbian-archive-keyring.gpg
-      BOOTSTRAP_URL=$RASP_MIRROR
+      KEYRING=/usr/share/keyrings/debian-archive-keyring.gpg
+      BOOTSTRAP_URL=$DEB_MIRROR
       ;;
   esac
 fi
