@@ -9,9 +9,9 @@ jobs:
     strategy:
       matrix:
         DISTRO: ["debian", "raspios"]
-        SUITE: ["bullseye"]
+        SUITE: ["buster", "bullseye", "bookworn", "trixie"]
         ARCH: ["arm64", "armhf"]
-        VARIANT: ["slim", "lite"]
+        VARIANT: ["slim", "lite", "desktop"]
     name: rpi-builder
     steps:
       - name: Set up QEMU
