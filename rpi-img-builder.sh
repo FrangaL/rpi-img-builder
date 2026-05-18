@@ -549,6 +549,7 @@ systemd-nspawn_exec dpkg-reconfigure -fnoninteractive tzdata
 
 # ── Locales ───────────────────────────────────────────────────────────────────
 status "Configure locales"
+systemd-nspawn_exec apt-get install -y locales
 sed -i "s/^# *\($LOCALES\)/\1/" "$R"/etc/locale.gen
 systemd-nspawn_exec locale-gen
 echo "LANG=$LOCALES" >"$R"/etc/locale.conf
