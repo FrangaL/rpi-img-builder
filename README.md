@@ -1,6 +1,4 @@
-<div align="center">
-
-# 🫐 rpi-img-builder
+# rpi-img-builder
 
 **Constructor de imágenes Debian / RaspiOS para Raspberry Pi**
 
@@ -12,8 +10,6 @@
 Genera imágenes `.img` listas para flashear en tarjeta SD
 
 ---
-
-</div>
 
 ## 📋 Tabla de contenidos
 
