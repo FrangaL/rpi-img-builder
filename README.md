@@ -64,10 +64,10 @@ Genera imágenes `.img` listas para flashear en tarjeta SD
 
 | OS | Release | Variante | Arch | Imagen | Hash |
 |---|---|---|---|---|---|
-| Debian | Bullseye | Lite | 64-bit | [⬇ .img.xz](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/debian-bullseye-lite-arm64.img.xz) | [sha256](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/debian-bullseye-lite-arm64.img.sha256) |
-| Debian | Bullseye | Lite | 32-bit | [⬇ .img.xz](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/debian-bullseye-lite-armhf.img.xz) | [sha256](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/debian-bullseye-lite-armhf.img.sha256) |
-| RaspiOS | Bullseye | Lite | 64-bit | [⬇ .img.xz](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/raspios-bullseye-lite-arm64.img.xz) | [sha256](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/raspios-bullseye-lite-arm64.img.sha256) |
-| RaspiOS | Bullseye | Lite | 32-bit | [⬇ .img.xz](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/raspios-bullseye-lite-armhf.img.xz) | [sha256](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.0/raspios-bullseye-lite-armhf.img.sha256) |
+| Debian | Bullseye | Lite | 64-bit | [⬇ .img.xz](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.1/debian-bullseye-lite-arm64.img.xz) | [sha256](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.1/debian-bullseye-lite-arm64.img.sha256) |
+| Debian | Bullseye | Lite | 32-bit | [⬇ .img.xz](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.1/debian-bullseye-lite-armhf.img.xz) | [sha256](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.1/debian-bullseye-lite-armhf.img.sha256) |
+| RaspiOS | Bullseye | Lite | 64-bit | [⬇ .img.xz](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.1/raspios-bullseye-lite-arm64.img.xz) | [sha256](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.1/raspios-bullseye-lite-arm64.img.sha256) |
+| RaspiOS | Bullseye | Lite | 32-bit | [⬇ .img.xz](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.1/raspios-bullseye-lite-armhf.img.xz) | [sha256](https://github.com/FrangaL/rpi-img-builder/releases/download/v1.0.1/raspios-bullseye-lite-armhf.img.sha256) |
 
 [→ Ver todas las releases](https://github.com/FrangaL/rpi-img-builder/releases/)
 
