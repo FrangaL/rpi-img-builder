@@ -624,7 +624,7 @@ if [[ "$NETWORK" == "static" ]]; then
 fi
 
 # ── WiFi ──────────────────────────────────────────────────────────────────────
-mkdir -p "$R"/etc/wpa_supplicant/wpa_supplicant.conf
+mkdir -p "$R"/etc/wpa_supplicant
 cat <<EOF >"$R"/etc/wpa_supplicant/wpa_supplicant.conf
 ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
 update_config=1
