@@ -226,7 +226,7 @@ systemd-nspawn_exec() {
 }
 
 # ── Base package lists ───────────────────────────────────────────────────────
-MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron wget curl gnupg ca-certificates gpgv zstd"
+MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron wget curl gnupg ca-certificates gpgv gzip"
 EXCLUDE="info install-info tasksel"
 EXTRAPKGS="openssh-server parted locales dosfstools sudo libterm-readline-gnu-perl"
 WIRELESSPKGS="wpasupplicant wireless-tools rfkill wireless-regdb"
