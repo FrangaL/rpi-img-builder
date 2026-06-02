@@ -226,7 +226,7 @@ systemd-nspawn_exec() {
 }
 
 # ── Base package lists ───────────────────────────────────────────────────────
-MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron wget curl gnupg ca-certificates gpgv gzip"
+MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron wget curl gnupg ca-certificates"
 EXCLUDE="info install-info tasksel"
 EXTRAPKGS="openssh-server parted locales dosfstools sudo libterm-readline-gnu-perl"
 WIRELESSPKGS="wpasupplicant wireless-tools rfkill wireless-regdb"
@@ -510,6 +510,7 @@ mkdir -p "${R}/etc/initramfs-tools/conf.d"
 echo "RESUME=none" | tee "${R}/etc/initramfs-tools/conf.d/resume" >/dev/null
 
 # ── Install kernel ────────────────────────────────────────────────────────────
+systemd-nspawn_exec apt-get install -y gpgv gzip
 systemd-nspawn_exec apt-get install -y ${KERNEL_IMAGE}
 
 # ── Boot configuration ────────────────────────────────────────────────────────
