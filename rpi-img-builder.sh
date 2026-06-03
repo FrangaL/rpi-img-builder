@@ -226,7 +226,7 @@ systemd-nspawn_exec() {
 }
 
 # ── Base package lists ───────────────────────────────────────────────────────
-MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron wget curl gnupg ca-certificates"
+MINPKGS="ifupdown openresolv net-tools init dbus rsyslog cron wget curl gnupg gpgv ca-certificates"
 EXCLUDE="info install-info tasksel"
 EXTRAPKGS="openssh-server parted locales dosfstools sudo libterm-readline-gnu-perl"
 WIRELESSPKGS="wpasupplicant wireless-tools rfkill wireless-regdb"
@@ -482,10 +482,12 @@ systemd-nspawn_exec systemctl enable rpi-resizerootfs.service
 
 # ── Users and groups ──────────────────────────────────────────────────────────
 status "Configuration of users and groups"
+ROOT_HASH=$(openssl passwd -6 "${ROOT_PASSWORD}")
+PI_HASH=$(openssl passwd -6 "${ROOT_PASSWORD}")
 systemd-nspawn_exec <<_EOF
-echo "root:${ROOT_PASSWORD}" | chpasswd
+echo "root:${ROOT_HASH}" | chpasswd -e
 adduser --gecos pi --disabled-password pi
-echo "pi:${ROOT_PASSWORD}" | chpasswd
+echo "pi:${PI_HASH}" | chpasswd -e
 echo spi i2c gpio | xargs -n 1 groupadd -r
 usermod -a -G adm,dialout,sudo,audio,video,plugdev,users,netdev,input,spi,gpio,i2c,sudo pi
 _EOF
