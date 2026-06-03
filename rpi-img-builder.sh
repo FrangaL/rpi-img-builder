@@ -513,7 +513,16 @@ echo "RESUME=none" | tee "${R}/etc/initramfs-tools/conf.d/resume" >/dev/null
 
 # ── Install kernel ────────────────────────────────────────────────────────────
 systemd-nspawn_exec apt-get install -y gpgv gzip
+printf '#!/bin/sh\nexit 101\n' >"$R"/usr/sbin/policy-rc.d
+chmod +x "$R"/usr/sbin/policy-rc.d
+cat >"$R"/etc/initramfs-tools/conf.d/nospawn <<EOF
+export MODULES=list
+EOF
 systemd-nspawn_exec apt-get install -y ${KERNEL_IMAGE}
+rm -f "$R"/usr/sbin/policy-rc.d "$R"/etc/initramfs-tools/conf.d/nospawn
+systemd-nspawn --bind "$QEMUBIN" --bind-ro=/proc/modules $EXTRA_ARGS --capability=cap_setfcap \
+  -E RUNLEVEL=1 -E LANG=C -E DEBIAN_FRONTEND=noninteractive -E DEBCONF_NOWARNINGS=yes \
+  -M "$MACHINE" -D "${R}" update-initramfs -u -k all
 
 # ── Boot configuration ────────────────────────────────────────────────────────
 mkdir -p "${R}/${BOOT}"
