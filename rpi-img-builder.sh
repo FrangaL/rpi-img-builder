@@ -527,6 +527,14 @@ echo "RESUME=none" | tee "${R}/etc/initramfs-tools/conf.d/resume" >/dev/null
 
 # ── Install kernel ────────────────────────────────────────────────────────────
 systemd-nspawn_exec apt-get install -y gpgv gzip initramfs-tools
+# kmod 34.2-2's initramfs hook uses *-linux-gnu, which misses ARMHF's
+# arm-linux-gnueabihf multiarch directory and aborts kernel installation.
+if [ "$ARCHITECTURE" = "armhf" ]; then
+  KMOD_INITRAMFS_HOOK="$R/usr/share/initramfs-tools/hooks/kmod"
+  if [ -f "$KMOD_INITRAMFS_HOOK" ]; then
+    sed -i 's|\*-linux-gnu/|*-linux-gnu*/|g' "$KMOD_INITRAMFS_HOOK"
+  fi
+fi
 printf '#!/bin/sh\nexit 101\n' >"$R"/usr/sbin/policy-rc.d
 chmod +x "$R"/usr/sbin/policy-rc.d
 FIRMWARE_STAGE_DIR="${BASEDIR}/firmware-stage"
