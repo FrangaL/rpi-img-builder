@@ -11,7 +11,7 @@ jobs:
         DISTRO: ["debian", "raspios"]
         SUITE: ["buster", "bullseye", "bookworm", "trixie"]
         ARCH: ["arm64", "armhf"]
-        VARIANT: ["slim", "lite", "desktop"]
+        VARIANT: ["slim", "lite", "full"]
     name: rpi-builder
     steps:
       - name: Set up QEMU
