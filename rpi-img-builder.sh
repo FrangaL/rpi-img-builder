@@ -393,10 +393,11 @@ EOF
         echo "APT::Default-Release \"$RELEASE\";" >"$R"/etc/apt/apt.conf
         ;;
       bullseye)
+        # Bullseye LTS ended in August 2026. The security index still advertises
+        # package versions whose files have been removed, so use the archive.
         cat >"$R"/etc/apt/sources.list <<EOF
 deb $DEB_MIRROR $RELEASE $COMPONENTS
 deb $DEB_MIRROR ${RELEASE}-updates $COMPONENTS
-deb $DEB_SECURITY ${RELEASE}-security $COMPONENTS
 EOF
         ;;
       bookworm|trixie|*)
