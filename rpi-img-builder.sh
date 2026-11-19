@@ -26,10 +26,7 @@ MACHINE=$(dbus-uuidgen)
 
 # ── Load custom config ───────────────────────────────────────────────────────
 if [[ -f ./config.txt ]]; then
-  mapfile -t config_lines < config.txt
-  for line in "${config_lines[@]}"; do
-    [[ "$line" =~ ^[A-Z_]+=.* ]] && declare "$line"
-  done
+  source ./config.txt
 fi
 
 case "$RELEASE" in
@@ -167,6 +164,8 @@ configure_packages() {
 }
 
 # ── Install host dependencies ────────────────────────────────────────────────
+exec 9>/run/lock/rpi-img-builder-host-apt.lock
+flock -x 9
 status "Updating apt repository..."
 apt-get update || apt-get update
 
@@ -175,6 +174,8 @@ DEPS="binfmt-support dosfstools rsync wget lsof git parted dirmngr e2fsprogs \
 systemd-container debootstrap xz-utils kmod udev dbus gnupg gnupg-utils debian-archive-keyring"
 configure_packages
 installdeps
+flock -u 9
+exec 9>&-
 
 # Check minimum debootstrap version (1.0.105 added trixie/sid support)
 if dpkg --compare-versions "$(dpkg-query -f '${Version}' -W debootstrap)" lt "1.0.105"; then
@@ -198,6 +199,8 @@ case ${ARCHITECTURE} in
     CMAKE_ARM="-DARM64=OFF"
     ;;
 esac
+QEMU_BIND_ARGS=()
+[[ -x "$QEMUBIN" ]] && QEMU_BIND_ARGS=(--bind "$QEMUBIN")
 
 # Load binfmt_misc kernel module first, THEN check if QEMU is registered.
 [ -z "$(lsmod | awk '/^binfmt_misc/{print $1}')" ] && modprobe binfmt_misc &>/dev/null
@@ -217,7 +220,7 @@ else
 fi
 
 systemd-nspawn_exec() {
-  systemd-nspawn --bind "$QEMUBIN" $EXTRA_ARGS --capability=cap_setfcap \
+  systemd-nspawn "${QEMU_BIND_ARGS[@]}" $EXTRA_ARGS --capability=cap_setfcap \
     -E RUNLEVEL=1 \
     -E LANG=C \
     -E DEBIAN_FRONTEND=noninteractive \
@@ -329,15 +332,25 @@ fi
 # ── First stage debootstrap ──────────────────────────────────────────────────
 status "debootstrap first stage"
 mkdir -p "$R"
-sed -i'.bkp' 's/^keyring.*/keyring $KEYRING\ndefault_mirror $BOOTSTRAP_URL/' \
-  /usr/share/debootstrap/scripts/sid
-debootstrap --foreign --arch="${ARCHITECTURE}" \
-  --components="${COMPONENTS// /,}" \
-  --keyring="$KEYRING" --variant - \
-  --exclude="${EXCLUDE// /,}" \
-  --include="${MINPKGS// /,}" \
-  "$RELEASE" "$R" "$BOOTSTRAP_URL"
-mv /usr/share/debootstrap/scripts/sid{.bkp,}
+(
+  exec 9>/run/lock/rpi-img-builder-debootstrap.lock
+  flock -x 9
+  sed -i'.bkp' 's/^keyring.*/keyring $KEYRING\ndefault_mirror $BOOTSTRAP_URL/' \
+    /usr/share/debootstrap/scripts/sid
+  restore_debootstrap_script() {
+    [ ! -f /usr/share/debootstrap/scripts/sid.bkp ] || \
+      mv /usr/share/debootstrap/scripts/sid.bkp /usr/share/debootstrap/scripts/sid
+  }
+  trap restore_debootstrap_script EXIT
+  debootstrap --foreign --arch="${ARCHITECTURE}" \
+    --components="${COMPONENTS// /,}" \
+    --keyring="$KEYRING" --variant - \
+    --exclude="${EXCLUDE// /,}" \
+    --include="${MINPKGS// /,}" \
+    "$RELEASE" "$R" "$BOOTSTRAP_URL"
+  restore_debootstrap_script
+  trap - EXIT
+)
 
 # Disable recommends inside the chroot for the whole build
 cat >"$R"/etc/apt/apt.conf.d/99_norecommends <<EOF
@@ -515,11 +528,19 @@ echo "RESUME=none" | tee "${R}/etc/initramfs-tools/conf.d/resume" >/dev/null
 systemd-nspawn_exec apt-get install -y gpgv gzip initramfs-tools
 printf '#!/bin/sh\nexit 101\n' >"$R"/usr/sbin/policy-rc.d
 chmod +x "$R"/usr/sbin/policy-rc.d
-systemd-nspawn_exec apt-get install -y ${KERNEL_IMAGE}
-rm -f "$R"/usr/sbin/policy-rc.d
-systemd-nspawn --bind "$QEMUBIN" --bind-ro=/proc/modules $EXTRA_ARGS --capability=cap_setfcap \
+FIRMWARE_STAGE_DIR="${BASEDIR}/firmware-stage"
+mkdir -p "$FIRMWARE_STAGE_DIR"
+systemd-nspawn "${QEMU_BIND_ARGS[@]}" --bind "$FIRMWARE_STAGE_DIR:/boot/firmware" \
+  $EXTRA_ARGS --capability=cap_setfcap \
   -E RUNLEVEL=1 -E LANG=C -E DEBIAN_FRONTEND=noninteractive -E DEBCONF_NOWARNINGS=yes \
-  -M "$MACHINE" -D "${R}" update-initramfs -u -k all
+  -E INITRD=No -M "$MACHINE" -D "${R}" apt-get install -y ${KERNEL_IMAGE}
+rm -f "$R"/usr/sbin/policy-rc.d
+mkdir -p "$R/$BOOT"
+cp -a "$FIRMWARE_STAGE_DIR"/. "$R/$BOOT"/
+rm -rf "$FIRMWARE_STAGE_DIR"
+systemd-nspawn "${QEMU_BIND_ARGS[@]}" --bind-ro=/proc/modules $EXTRA_ARGS --capability=cap_setfcap \
+  -E RUNLEVEL=1 -E LANG=C -E DEBIAN_FRONTEND=noninteractive -E DEBCONF_NOWARNINGS=yes \
+  -M "$MACHINE" -D "${R}" update-initramfs -c -k all
 
 # ── Boot configuration ────────────────────────────────────────────────────────
 mkdir -p "${R}/${BOOT}"
@@ -655,11 +676,11 @@ fi
 
 # ── Userland / platform tools ─────────────────────────────────────────────────
 if [[ "$OS" == "debian" && "$VARIANT" == "lite" ]]; then
-  git clone --depth 1 https://github.com/raspberrypi/userland.git
+  git clone --depth 1 https://github.com/raspberrypi/userland.git "$BASEDIR/userland"
   DEPS="crossbuild-essential-${ARCHITECTURE} cmake make g++ pkg-config"
   installdeps
-  mkdir -p "$CURRENT_DIR"/userland/build
-  pushd "$CURRENT_DIR"/userland/build
+  mkdir -p "$BASEDIR"/userland/build
+  pushd "$BASEDIR"/userland/build
   cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
     -DCMAKE_C_FLAGS="-w -std=gnu17" \
     -DCMAKE_CXX_FLAGS="-w" \
@@ -709,7 +730,7 @@ if [ -n "$PROXY_URL" ]; then
 fi
 find "$R"/var/log -depth -type f -print0 | xargs -0 truncate -s 0
 rm -f "$R"/usr/bin/qemu*
-rm -rf userland
+rm -rf "$BASEDIR"/userland
 if [[ "$VARIANT" == "slim" ]]; then
   find "$R"/usr/share/doc -depth -type f ! -name copyright -print0 | xargs -0 rm
   find "$R"/usr/share/doc -empty -print0 | xargs -0 rmdir
@@ -789,15 +810,17 @@ fi
 
 status "Delete devices loop"
 blockdev -v --flushbufs "${LOOPDEVICE}"
-losetup -v -d "${LOOPDEVICE}"
+losetup -d "${LOOPDEVICE}"
 
 [[ "$COMPRESS" =~ (gzip|xz) ]] && IMG_END=Comprimiendo
 status "${IMG_END:-"Finalizando"} imagen ..."
 if [[ "$COMPRESS" == "gzip" ]]; then
-  gzip "${IMGNAME}"
+  gzip -c "${IMGNAME}" >"${IMGNAME}.gz"
+  rm -f "${IMGNAME}"
   chmod 664 "${IMGNAME}.gz"
 elif [[ "$COMPRESS" == "xz" ]]; then
-  xz -T "$(nproc)" "${IMGNAME}"
+  xz -T "$(nproc)" -c "${IMGNAME}" >"${IMGNAME}.xz"
+  rm -f "${IMGNAME}"
   chmod 664 "${IMGNAME}.xz"
   IMGNAME="${IMGNAME}.xz"
 else
