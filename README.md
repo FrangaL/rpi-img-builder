@@ -71,11 +71,13 @@ Genera imágenes `.img` listas para flashear en tarjeta SD
 
 [→ Ver todas las releases](https://github.com/FrangaL/rpi-img-builder/releases/)
 
+> Los enlaces de esta tabla son imágenes de Bullseye publicadas en `v1.0.1`; se conservan como descargas de esa release. Consulta la página de releases para ver qué archivos están publicados en cada versión.
+
 ---
 
 ## 🔧 Dependencias
 
-El script instala automáticamente todo lo necesario en el host. Requiere un host basado en **Debian o Ubuntu**.
+El script instala automáticamente las dependencias que faltan mediante APT. Requiere un host basado en **Debian o Ubuntu**, conexión a los repositorios y privilegios de `root` (por ejemplo, ejecutándolo con `sudo`). También necesita `systemd-nspawn`, soporte para dispositivos loop y una versión de `debootstrap` igual o posterior a `1.0.105`; el propio script comprueba esta versión.
 
 ```
 binfmt-support      dosfstools          rsync               wget
@@ -86,8 +88,7 @@ gnupg-utils         debian-archive-keyring
 qemu-user-static    (o qemu-user-binfmt en Debian 13+ / Ubuntu 26.04+)
 ```
 
-> **Versión mínima de debootstrap:** `1.0.105` (añade soporte para trixie/sid).  
-> Si tu sistema tiene una versión anterior, instala desde backports:
+> Si tu distribución ofrece una versión anterior, actualiza `debootstrap` desde un repositorio compatible, por ejemplo backports en Debian:
 > ```shell
 > sudo apt-get install -t $(lsb_release -cs)-backports debootstrap
 > ```
@@ -97,7 +98,7 @@ qemu-user-static    (o qemu-user-binfmt en Debian 13+ / Ubuntu 26.04+)
 ## ⚡ Configuración rápida
 
 ```shell
-# Imagen por defecto: debian bookworm lite arm64
+# Imagen por defecto: raspios bookworm lite arm64
 sudo ./rpi-img-builder.sh
 
 # RaspiOS bookworm arm64 comprimido en xz
@@ -115,7 +116,7 @@ sudo RELEASE="trixie" ADDPKG="nano htop tmux" ./rpi-img-builder.sh
 
 | Variable | Default | Valores | Descripción |
 |---|---|---|---|
-| `OS` | `debian` | `debian` `raspios` | Sistema operativo base |
+| `OS` | `raspios` | `debian` `raspios` | Sistema operativo base |
 | `RELEASE` | `bookworm` | `buster` `bullseye` `bookworm` `trixie` | Release de Debian/RaspiOS |
 | `VARIANT` | `lite` | `slim` `lite` `full` | Variante del sistema |
 | `ARCHITECTURE` | `arm64` | `arm64` `armhf` | Arquitectura de la imagen |
@@ -185,8 +186,10 @@ sudo WPA_ESSID="MiRed" WPA_PASSWORD="mipassword" WPA_COUNTRY="ES" ./rpi-img-buil
 | `LOCALES` | `es_ES.UTF-8` | Locale del sistema |
 
 ```shell
-sudo ROOT_PASSWORD="s3cur3!" TIMEZONE="Europe/London" LOCALES="en_GB.UTF-8" ./rpi-img-builder.sh
+sudo ROOT_PASSWORD="CAMBIA_ESTA_PASSWORD" TIMEZONE="Europe/London" LOCALES="en_GB.UTF-8" ./rpi-img-builder.sh
 ```
+
+> **Seguridad:** cambia siempre la contraseña predeterminada antes de usar la imagen. El mismo valor se establece para `root` y `pi`. No guardes contraseñas reales en un archivo que vayas a publicar o subir a Git.
 
 ---
 
@@ -271,7 +274,7 @@ sudo ARCHITECTURE="armhf" ./rpi-img-builder.sh
 
 ## 📄 config.txt — Configuración persistente
 
-En lugar de pasar todas las variables por entorno, puedes crear un fichero `config.txt` en el mismo directorio del script. Se carga automáticamente antes de ejecutar nada.
+En lugar de pasar todas las variables por entorno, puedes crear un fichero `config.txt` en el mismo directorio del script. Se carga automáticamente al inicio. El script lo interpreta como código Bash: usa solo asignaciones de variables y no ejecutes archivos de configuración de origen desconocido.
 
 ```shell
 # config.txt — ejemplo sysadmin completo
@@ -283,13 +286,13 @@ FSTYPE="ext4"
 BOOT_MB="256"
 FREE_SPACE="512"
 HOST_NAME="rpi-prod-01"
-ROOT_PASSWORD="c4mb14m3!"
+ROOT_PASSWORD="CAMBIA_ESTA_PASSWORD"
 COMPRESS="xz"
 TIMEZONE="Europe/Madrid"
 LOCALES="es_ES.UTF-8"
 ADDPKG="nano htop tmux rsync curl jq sudo"
 WPA_ESSID="LabNet"
-WPA_PASSWORD="labpassword"
+WPA_PASSWORD="CAMBIA_ESTA_PASSWORD_WIFI"
 WPA_COUNTRY="ES"
 IPV4="10.0.0.50"
 NETMASK="255.255.255.0"
@@ -298,7 +301,7 @@ DNS="10.0.0.1"
 MANIFEST="true"
 ```
 
-> Las variables de `config.txt` tienen precedencia sobre los defaults del script pero son sobreescritas por variables de entorno explícitas en la llamada.
+> El orden efectivo es: valores predeterminados, variables de entorno y, por último, valores de `config.txt`. Por tanto, si existe `config.txt`, sus asignaciones prevalecen incluso sobre variables indicadas en la llamada. Para cambiar esos valores, edita el archivo o quítalo temporalmente.
 
 ---
 
@@ -358,7 +361,7 @@ RELEASE="bookworm"
 ARCHITECTURE="arm64"
 VARIANT="lite"
 HOST_NAME="rpi4-server"
-ROOT_PASSWORD="s3cur3p4ss"
+ROOT_PASSWORD="CAMBIA_ESTA_PASSWORD"
 COMPRESS="xz"
 TIMEZONE="Europe/Madrid"
 LOCALES="es_ES.UTF-8"
@@ -418,6 +421,14 @@ sudo dd if=debian-bookworm-lite-arm64.img \
 xzcat raspios-bookworm-lite-arm64.img.xz | pv | sudo dd of=/dev/sdX bs=64k oflag=dsync
 ```
 
+Antes de flashear una descarga de una release, descarga también el archivo `.sha256` correspondiente y verifica el nombre de archivo:
+
+```shell
+sha256sum -c debian-bullseye-lite-arm64.img.sha256
+```
+
+Reemplaza `/dev/sdX` por el dispositivo comprobado con `lsblk`. La escritura sobrescribe por completo el dispositivo seleccionado.
+
 ---
 
 ## 🐛 Debugging
@@ -430,16 +441,19 @@ sudo ./rpi-img-builder.sh --debug
 tail -f rpi-img-builder.log
 ```
 
-Si el build falla a mitad, el directorio de trabajo queda en:
+Si el build falla a mitad, el directorio de trabajo puede quedar en:
 
 ```
 ./{OS}_{RELEASE}_{VARIANT}_{ARCHITECTURE}/
 ```
 
-Para forzar una nueva compilación bórralo manualmente:
+Antes de limpiar ese directorio, comprueba que no haya montajes ni dispositivos loop activos asociados a la compilación. Conserva el directorio si necesitas diagnosticar el fallo. El script no reanuda una compilación si ya existe ese directorio; una vez desmontados los sistemas de archivos y liberado el loop, puedes eliminar únicamente el directorio de la variante afectada:
 
 ```shell
-sudo rm -rf ./debian_bookworm_lite_arm64/
+sudo findmnt -R ./debian_bookworm_lite_arm64/mount
+sudo losetup -j "$(pwd)/debian-bookworm-lite-arm64.img"
+# Tras verificar que no quedan montajes ni loop asociados:
+sudo rm -rf -- ./debian_bookworm_lite_arm64/
 ```
 
 ---

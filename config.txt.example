@@ -1,7 +1,7 @@
-# Seleccionar diferentes sistemas operativos (debian/raspios).
+# Sistema operativo base (debian o raspios). Default: raspios.
 #OS="raspios"
 
-# Elegir entra las variantes lite y slim con el sistema mínimo.
+# Elegir entre las variantes lite y slim con el sistema mínimo.
 #VARIANT="slim"
 
 # Seleccionar arquitectura entre arm64 y armhf.
@@ -21,13 +21,13 @@
 # Comprimir imagen en formato gz o xz.
 #COMPRESS="xz"
 
-# Establecera la zona horaria.
+# Establecer la zona horaria.
 #TIMEZONE="Europe/London"
 
-# Establecera locale del sistema.
+# Establecer el locale del sistema.
 #LOCALES="en_GB.UTF-8"
 
-# Establecer la contraseña a los usuarios root y pi.
+# La misma contraseña se establece para root y pi; cámbiala antes de usar la imagen.
 #ROOT_PASSWORD="tupassword"
 
 #Definir el nombre del host.
